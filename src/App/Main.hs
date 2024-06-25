@@ -1,8 +1,8 @@
 module Main where
-import Lib.Lexier (scanMultipleWords, evalScanner)
+import Lib.Lexier
+import Control.Monad.State
 
 main :: IO ()
 main = do
-  let input = "foo = 42 + bar"
-  foldMap print $ evalScanner (scanMultipleWords 1) input
+  print $ runState consumeNum "123456"
   

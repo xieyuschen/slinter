@@ -1,63 +1,83 @@
-{-# LANGUAGE InstanceSigs #-}
 module Lib.Lexier where
 
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Control.Monad.State
-import Data.Text.Internal.Fusion.Types (Scan)
-import Control.Monad.Reader
+    ( evalState, runState, MonadState(state), State, StateT(..) )
+import Control.Monad.Reader ( runReader, Reader, ReaderT(ReaderT) )
+import Data.Text (breakOn)
+import Data.List (find)
 
 data Token = Word String
            | Number Int
+           | Whitespace
+           | Abnormal
            deriving (Show, Eq)
 
--- Define a Scanner type, which is a function from input string to a list of tokens
-newtype Scanner a = Scanner { 
-  runScanner :: State String [a]
+type Consumer = State String Token
+type Checker =  Char -> Bool
+type Extracter = (Checker, Consumer)
+
+newtype Scanner = Scanner { 
+  runScanner :: StateT String (Reader [Extracter]) [Token]
 }
 
-executeScaner :: Scanner a -> String -> ([a], String)
-executeScaner = runState . runScanner
+consumeSpace :: Consumer
+consumeSpace = state $ \s -> (Whitespace, tail s)
 
-evalScanner :: Scanner a -> String -> [a]
-evalScanner =  evalState . runScanner
+isString :: Checker
+isString s = s == '\"'
 
-instance Functor Scanner where
-  fmap :: (a -> b) -> Scanner a -> Scanner b
-  fmap f (Scanner v) = Scanner $ fmap f <$> v
+consumeString :: Consumer
+consumeString = state $ \s -> do
+  let (word, left) = break isString $ tail s -- remove the leading "
+  (Word $ "\"" ++ word ++ "\"", tail left) -- remove the ending "
 
-instance Applicative Scanner where
-  pure :: a -> Scanner a
-  pure x = Scanner $ return [x]
-  (<*>) :: Scanner (a -> b) -> Scanner a -> Scanner b
-  (Scanner sf) <*> (Scanner sx) = Scanner $ state $ \s ->
-    let (fs, s')  = runState sf s
-        (xs, s'') = runState sx s'
-        -- this doesn't make sense in our scenario 
-        -- because we won't have the case of multiple functions inside the array
-    in ([head fs x  | x <- xs], s'')
+consumeNum :: Consumer
+consumeNum = state $ \s-> do
+  let (num,left) = span isDigit s
+  (Number (read num::Int), left)
 
-  
-scanOneWord :: Scanner String
-scanOneWord = Scanner $ state $ \s ->
-  let (word, rest) = break isSpace (dropWhile isSpace s)
-      remaining = dropWhile isSpace rest
-  in ([word], remaining)
+applyFirstMatch :: [Extracter] -> State String [Token]
+applyFirstMatch predicateActions = state $ \s -> do
+    let re = find (\(predicate, _) -> predicate (head s)) predicateActions
+    case re of 
+      Nothing -> ([Abnormal],"")
+      Just (_, extract) -> do
+        let (token, s') = runState extract s
+        ([token], s')
 
+makeScanner :: Scanner
+makeScanner = Scanner $ StateT $ \s ->
+  ReaderT $ \extracters -> do
+    let st = applyFirstMatch extracters
+        result = runState st s
+    return result
 
-scanMultipleWords :: Int -> Scanner String
-scanMultipleWords n 
-  -- pure [] will return a [""], instead []
-  | n == 0 = Scanner $ state $ \s -> ([], s)
-  | otherwise = Scanner $ state $ \s -> do
-    let (word, s') = runState (runScanner scanOneWord) s
-    let (leftWord, s'') = executeScaner (scanMultipleWords $ n-1) s'
-    (word++leftWord, s'')
+scanOne :: [Extracter] -> State String [Token]
+scanOne extracter = state $ \s -> do
+    let r = runStateT (runScanner makeScanner) s
+    runReader r extracter
 
-scanAllWords :: Scanner String
-scanAllWords = Scanner $ state $ \s ->
-  if s == "" then pure []
-  else do
-    let (word, s') = runState (runScanner scanOneWord) s
-        (leftWord, s'') = runState (runScanner scanAllWords) s'
-    (word++leftWord, s'')
+scanMultipleSt :: [Extracter] -> Int -> State String [Token]
+scanMultipleSt extracter num
+  | num == 0 = state $ \s -> ([], s)
+  | otherwise = state $ \s -> do
+    let r = runStateT (runScanner makeScanner) s
+    let (token, s') = runReader r extracter
+        (right, s'') = runState (scanMultipleSt extracter $ num-1) s'
+    (token ++ right, s'')
 
+scanAllSt :: [Extracter] -> State String [Token]
+scanAllSt extracter = state $ \s ->
+  case s of
+    "" -> return []
+    _ -> do
+      let (token, s') = runState (scanOne extracter) s
+          (token',s'') = runState (scanAllSt extracter) s' 
+      (token ++ token', s'')
+
+scanMultiple :: String -> [Extracter] -> Int -> [Token]
+scanMultiple input extracters num = evalState (scanMultipleSt extracters num) input
+
+scanAll :: String -> [Extracter] -> [Token]
+scanAll input extracters = evalState (scanAllSt extracters) input
