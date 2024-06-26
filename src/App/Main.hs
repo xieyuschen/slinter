@@ -1,8 +1,11 @@
 module Main where
+
 import Lib.Lexier
-import Control.Monad.State
+import Control.Applicative ((<|>))
 
 main :: IO ()
 main = do
-  print $ runState consumeNum "123456"
+  let extracters = consumeWord <|> consumeSpace <|> consumeNum
+  let input = "12 34 56"
+  print $ scanOne extracters input
   

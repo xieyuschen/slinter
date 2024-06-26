@@ -4,57 +4,61 @@ module Lib.LexierSpec(spec) where
 
 import Test.Hspec ( Spec, describe, it, shouldBe )
 import Lib.Lexier
-import Control.Monad.State ( runState )
-import Data.Char (isDigit, isSpace)
+import Control.Applicative ((<|>))
 
 spec :: Spec
 spec = do
-  let extracters = [(isString, consumeString), (isSpace, consumeSpace), (isDigit, consumeNum)]
+  let extracters = consumeWord <|> consumeSpace <|> consumeNum
   describe "consume one number" $ do
     let input = "12 34 56"
-    let (tokens, s) = runState (scanOne extracters) input
+    let (tokens, s) = scanOneSt extracters input
     it "should scan correctly" $ do
-      tokens `shouldBe` [Number 12]
+      tokens `shouldBe` Right [Number 12]
     it "should have the correct new state" $ do
       s `shouldBe` " 34 56"
 
   describe "consume one space" $ do
     let input = " 34 56"
-    let (tokens, s) = runState (scanOne extracters) input
+    let (tokens, s) = scanOneSt extracters input
     it "should scan correctly" $ do
-      tokens `shouldBe` [Whitespace]
+      tokens `shouldBe` Right [Whitespace]
     it "should have the correct new state" $ do
       s `shouldBe` "34 56"
 
   describe "consume one word" $ do
     let input = "\"helloworld\" 123456"
-    let (tokens, s) = runState (scanOne extracters) input
+        (tokens, s) = scanOneSt extracters input
     it "should scan correctly" $ do
-      tokens `shouldBe` [Word "\"helloworld\"" ]
+      tokens `shouldBe` Right [Word "\"helloworld\"" ]
     it "should have the correct new state" $ do
       s `shouldBe` " 123456"
 
+  describe "consume one word and expect error" $ do
+    let input = "\"helloworld 123456"
+        (tokens, s) = scanOneSt extracters input
+    it "should return left dur to lack right quote" $ do
+      tokens `shouldBe` Left "missing right quote"
+    it "should have the correct new state" $ do
+      s `shouldBe` ""
+
   describe "consume multiple 1 tokens" $ do
     let input = "\"helloworld\" 123456"
-    let (tokens, s) = runState (scanMultipleSt extracters 1) input
+    let (tokens, s) = scanMultipleSt extracters input 1
     it "should scan correctly" $ do
-      tokens `shouldBe` [Word "\"helloworld\"" ]
+      tokens `shouldBe` Right [Word "\"helloworld\"" ]
     it "should have the correct new state" $ do
       s `shouldBe` " 123456"
 
   describe "consume multiple 3 tokens" $ do
     let input = "\"helloworld\" 123456"
-    let (tokens, s) = runState (scanMultipleSt extracters 3) input
+    let (tokens, s) = scanMultipleSt extracters input 3
     it "should scan correctly" $ do
-      tokens `shouldBe` [Word "\"helloworld\"", Whitespace, Number 123456]
+      tokens `shouldBe` Right [Word "\"helloworld\"", Whitespace, Number 123456]
     it "should have the correct new state" $ do
       s `shouldBe` ""
 
   describe "consume scanAll" $ do
     let input = "\"helloworld\" 123456"
-
-    let (tokens, s) = runState (scanAllSt extracters) input
+    let tokens = scanAllSt extracters input
     it "should scan correctly" $ do
-      tokens `shouldBe` [Word "\"helloworld\"", Whitespace, Number 123456]
-    it "should have the correct new state" $ do
-      s `shouldBe` ""
+      tokens `shouldBe` Right [Word "\"helloworld\"", Whitespace, Number 123456]

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "[]" #-}
 module Lib.Lexier where
 
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
@@ -6,6 +8,10 @@ import Control.Monad.State
 import Control.Monad.Reader ( runReader, Reader, ReaderT(ReaderT) )
 import Data.Text (breakOn)
 import Data.List (find)
+import Control.Monad.Trans.Except (ExceptT (ExceptT), runExcept, runExceptT)
+import Text.Read (Lexeme(String), readMaybe)
+import Control.Monad.Except
+import Control.Arrow (ArrowChoice(right))
 
 data Token = Word String
            | Number Int
@@ -13,71 +19,80 @@ data Token = Word String
            | Abnormal
            deriving (Show, Eq)
 
-type Consumer = State String Token
-type Checker =  Char -> Bool
-type Extracter = (Checker, Consumer)
+type Consumer = ExceptT String (State String) Token
 
-newtype Scanner = Scanner { 
-  runScanner :: StateT String (Reader [Extracter]) [Token]
-}
+safeTail :: [a] -> Maybe [a]
+safeTail [] = Nothing
+safeTail xs = Just $ tail xs
 
 consumeSpace :: Consumer
-consumeSpace = state $ \s -> (Whitespace, tail s)
+consumeSpace = ExceptT $ state $ \s -> do
+  if head s == ' ' then (Right Whitespace, tail s) else
+    (Left "", s)
 
-isString :: Checker
-isString s = s == '\"'
 
-consumeString :: Consumer
-consumeString = state $ \s -> do
-  let (word, left) = break isString $ tail s -- remove the leading "
-  (Word $ "\"" ++ word ++ "\"", tail left) -- remove the ending "
+consumeWord :: Consumer
+consumeWord = ExceptT $ state $ \s -> do
+  case safeTail s of
+    Nothing -> (Left "cannot find the right \"", s)
+    Just xs -> do
+      (if head s /= '\"' then (Left "not a string", s) else (do
+        let (word, left) = break (=='\"') xs -- remove the leading "
+        if left == "" || head left /= '\"'
+          then (Left "missing right quote", s)
+          else do
+          (Right $ Word $ "\"" ++ word ++ "\"", tail left))) -- remove the ending "
 
 consumeNum :: Consumer
-consumeNum = state $ \s-> do
+consumeNum = ExceptT $ state $ \s-> do
   let (num,left) = span isDigit s
-  (Number (read num::Int), left)
+  if num=="" then (Left "", "") else
+    case readMaybe num of
+      Nothing -> (Left $ "fail to parse num: " ++ num, "")
+      Just n -> (Right $ Number n,left)
 
-applyFirstMatch :: [Extracter] -> State String [Token]
-applyFirstMatch predicateActions = state $ \s -> do
-    let re = find (\(predicate, _) -> predicate (head s)) predicateActions
-    case re of 
-      Nothing -> ([Abnormal],"")
-      Just (_, extract) -> do
-        let (token, s') = runState extract s
-        ([token], s')
+-- each consumer must return a correct anwser, otherwise we will return due to an error
+extract :: [Consumer] -> ExceptT String (State String) [Token]
+extract predicateActions = ExceptT $ state $ \s -> do
+    foldr f (Right [], s) predicateActions where
+      f :: Consumer -> (Either String [Token], String) -> (Either String [Token], String)
+      f predicateAction (ei,s') = do
+        case ei of
+          Left str -> (Left str, s')
+          Right tokens -> do
+            if s' == "" then (ei, s') else do
+              let (tokenE, s'') = runState (runExceptT predicateAction) s'
+              case tokenE of
+                Left str -> (Left str,s'')
+                Right ntoken -> do
+                  (Right $ tokens ++ [ntoken], s'')
 
-makeScanner :: Scanner
-makeScanner = Scanner $ StateT $ \s ->
-  ReaderT $ \extracters -> do
-    let st = applyFirstMatch extracters
-        result = runState st s
-    return result
+scanOneSt :: Consumer -> String -> (Either String [Token], String)
+scanOneSt consumer = runState (runExceptT $ extract [consumer])
 
-scanOne :: [Extracter] -> State String [Token]
-scanOne extracter = state $ \s -> do
-    let r = runStateT (runScanner makeScanner) s
-    runReader r extracter
 
-scanMultipleSt :: [Extracter] -> Int -> State String [Token]
-scanMultipleSt extracter num
-  | num == 0 = state $ \s -> ([], s)
-  | otherwise = state $ \s -> do
-    let r = runStateT (runScanner makeScanner) s
-    let (token, s') = runReader r extracter
-        (right, s'') = runState (scanMultipleSt extracter $ num-1) s'
-    (token ++ right, s'')
+scanMultipleSt :: Consumer -> String -> Int -> (Either String [Token], String)
+scanMultipleSt consumer s num
+  | num == 0 = (Right [], s)
+  | otherwise = do
+    let (token, s') = scanOneSt consumer s
+        (ntoken, s'') = scanMultipleSt consumer s' $ num-1
+    case (++) <$> token <*> ntoken of
+      Left str -> (Left str, s'')
+      Right tokens -> (Right tokens, s'')
 
-scanAllSt :: [Extracter] -> State String [Token]
-scanAllSt extracter = state $ \s ->
-  case s of
-    "" -> return []
-    _ -> do
-      let (token, s') = runState (scanOne extracter) s
-          (token',s'') = runState (scanAllSt extracter) s' 
-      (token ++ token', s'')
+scanAllSt ::  Consumer -> String -> Either String [Token]
+scanAllSt c s
+  | s == "" = Right []
+  | otherwise = do
+    let (tokens, s') =  scanOneSt c s
+        ntokens = scanAllSt c s'
+    (++) <$> tokens <*> ntokens
 
-scanMultiple :: String -> [Extracter] -> Int -> [Token]
-scanMultiple input extracters num = evalState (scanMultipleSt extracters num) input
+scanOne :: Consumer -> String -> Either String [Token]
+scanOne consumer = evalState (runExceptT $ extract [consumer])
 
-scanAll :: String -> [Extracter] -> [Token]
-scanAll input extracters = evalState (scanAllSt extracters) input
+scanMultiple :: Consumer -> String -> Int -> Either String [Token]
+scanMultiple c s n = do
+  let (tokens, _) = scanMultipleSt c s n
+  tokens
