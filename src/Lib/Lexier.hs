@@ -4,35 +4,73 @@ module Lib.Lexier where
 
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Control.Monad.State
-    ( evalState, runState, MonadState(state), State, StateT(..) )
+    ( evalState, runState, MonadState(state, put), State, StateT(..) )
 import Control.Monad.Reader ( runReader, Reader, ReaderT(ReaderT) )
 import Data.Text (breakOn)
-import Data.List (find)
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExcept, runExceptT)
 import Text.Read (Lexeme(String), readMaybe)
 import Control.Monad.Except
 import Control.Arrow (ArrowChoice(right))
+import Control.Applicative (liftA2, Alternative ((<|>)))
+import Data.List (stripPrefix)
 
-data Token = Word String
+data Token = Str String
            | Number Int
+           | Identifier String
+           | Keyword String
+           | Operator String
            | Whitespace
            | Abnormal
            deriving (Show, Eq)
 
-type Consumer = ExceptT String (State String) Token
+-- pass the type you want to pass, so use a instead of [a]
+type Parser a = ExceptT String (State String) a
+
+-- then, we need to support a lot of combinaters
+
+parseSkip :: Parser a -> Parser [a]
+parseSkip p = ExceptT $ state $ \s -> do
+  let (ei, s') = runState (runExceptT p) s
+  case ei of
+    Left str -> (Left str, s)
+    Right e -> (return [], s)
+
+-- 0 or more times
+parseMany :: Parser a -> Parser [a]
+parseMany p = parseMany1 p <|> (state $ \s -> ([],s))
+
+-- 1 or more times
+parseMany1 :: Parser a -> Parser [a]
+parseMany1 p = liftA2 (:) p (parseMany p)
+
+-- one creates a parser to consume the given string 
+-- and generate a type based on the passed constructor
+parseOne :: String -> (String -> a) -> Parser a
+parseOne desired f= ExceptT $ state $ \s -> do
+  case stripPrefix desired s of
+    Nothing -> (Left "", s)
+    Just remainder -> (Right $ f desired , remainder)
+
+parseThen :: Parser [a] -> Parser [a] -> Parser [a]
+parseThen a b = ExceptT $ state $ \s -> 
+  let (resA, s')  = runState (runExceptT a) s
+      (resB, s'') = runState (runExceptT b) s'
+  in case (resA, resB) of
+       (Right d, Right d') -> (Right (d ++ d'), s'')
+       (Left err, _)       -> (Left err, s')
+       (_, Left err)       -> (Left err, s'')
 
 safeTail :: [a] -> Maybe [a]
 safeTail [] = Nothing
 safeTail xs = Just $ tail xs
 
-consumeSpace :: Consumer
-consumeSpace = ExceptT $ state $ \s -> do
-  if head s == ' ' then (Right Whitespace, tail s) else
+parseSpace :: ExceptT String (State String) Token
+parseSpace = ExceptT $ state $ \s -> do
+  if s/="" && head s == ' ' then (Right Whitespace, tail s) else
     (Left "", s)
 
-
-consumeWord :: Consumer
-consumeWord = ExceptT $ state $ \s -> do
+parseString :: ExceptT String (State String) Token
+parseString = ExceptT $ state $ \s -> do
   case safeTail s of
     Nothing -> (Left "cannot find the right \"", s)
     Just xs -> do
@@ -41,58 +79,17 @@ consumeWord = ExceptT $ state $ \s -> do
         if left == "" || head left /= '\"'
           then (Left "missing right quote", s)
           else do
-          (Right $ Word $ "\"" ++ word ++ "\"", tail left))) -- remove the ending "
+          (Right $ Str $ "\"" ++ word ++ "\"", tail left))) -- remove the ending "
 
-consumeNum :: Consumer
-consumeNum = ExceptT $ state $ \s-> do
+parseNumber :: ExceptT String (State String) Token
+parseNumber = ExceptT $ state $ \s-> do
   let (num,left) = span isDigit s
-  if num=="" then (Left "", "") else
-    case readMaybe num of
-      Nothing -> (Left $ "fail to parse num: " ++ num, "")
-      Just n -> (Right $ Number n,left)
+  if num=="" then (Left "", s) else
+    (Right $ Number $ read num,left)
 
--- each consumer must return a correct anwser, otherwise we will return due to an error
-extract :: [Consumer] -> ExceptT String (State String) [Token]
-extract predicateActions = ExceptT $ state $ \s -> do
-    foldr f (Right [], s) predicateActions where
-      f :: Consumer -> (Either String [Token], String) -> (Either String [Token], String)
-      f predicateAction (ei,s') = do
-        case ei of
-          Left str -> (Left str, s')
-          Right tokens -> do
-            if s' == "" then (ei, s') else do
-              let (tokenE, s'') = runState (runExceptT predicateAction) s'
-              case tokenE of
-                Left str -> (Left str,s'')
-                Right ntoken -> do
-                  (Right $ tokens ++ [ntoken], s'')
-
-scanOneSt :: Consumer -> String -> (Either String [Token], String)
-scanOneSt consumer = runState (runExceptT $ extract [consumer])
-
-
-scanMultipleSt :: Consumer -> String -> Int -> (Either String [Token], String)
-scanMultipleSt consumer s num
-  | num == 0 = (Right [], s)
-  | otherwise = do
-    let (token, s') = scanOneSt consumer s
-        (ntoken, s'') = scanMultipleSt consumer s' $ num-1
-    case (++) <$> token <*> ntoken of
-      Left str -> (Left str, s'')
-      Right tokens -> (Right tokens, s'')
-
-scanAllSt ::  Consumer -> String -> Either String [Token]
-scanAllSt c s
-  | s == "" = Right []
-  | otherwise = do
-    let (tokens, s') =  scanOneSt c s
-        ntokens = scanAllSt c s'
-    (++) <$> tokens <*> ntokens
-
-scanOne :: Consumer -> String -> Either String [Token]
-scanOne consumer = evalState (runExceptT $ extract [consumer])
-
-scanMultiple :: Consumer -> String -> Int -> Either String [Token]
-scanMultiple c s n = do
-  let (tokens, _) = scanMultipleSt c s n
-  tokens
+parseIdentifier ::  ExceptT String (State String) Token
+parseIdentifier = ExceptT $ state $ \s-> 
+  let (identifier, rest) = span isAlphaNum s
+  in if not (null identifier) && isAlpha (head identifier)
+       then (Right (Identifier identifier), rest)
+       else (Left "Failed to parse identifier", s)
