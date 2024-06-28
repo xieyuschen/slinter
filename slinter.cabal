@@ -1,5 +1,5 @@
 cabal-version:      3.0
-name:               hs-playground
+name:               slinter
 version:            0.1.0.0
 license:            BSD-2-Clause
 license-file:       LICENSE
@@ -25,10 +25,10 @@ library internallib
     import: common-depends
     exposed-modules:
        Lib.AST,
-       Lib.Lexier
+       Lib.Parser
     hs-source-dirs: src
 
-executable analyzer
+executable slinter
     import:           
         warnings,
         common-depends
@@ -48,4 +48,7 @@ test-suite tests
     main-is: Spec.hs
     hs-source-dirs: tests
     default-language: Haskell2010
+    other-modules:
+        Lib.ASTSpec,
+        Lib.ParserSpec
     build-tool-depends: hspec-discover:hspec-discover == 2.*

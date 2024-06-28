@@ -1,7 +1,24 @@
-module Lib.AST where 
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
+module Lib.AST where
+
+import Control.Monad.Except (ExceptT (ExceptT))
+import Control.Monad.RWS (MonadReader (ask))
 import Control.Monad.State
-    
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
+import Data.Char (isSpace)
+import Lib.Parser
+  ( Parser,
+    SemVer,
+    pMany,
+    pOne,
+    pOneKeyword,
+    pReadline,
+    pUntil,
+    pIdentifier,
+    parseManySpaces,
+    pSemVer,
+    pSpace,
+  )
+
 -- // SPDX-License-Identifier: MIT
 type SPDXComment = String
 
@@ -9,28 +26,30 @@ type SPDXComment = String
 type Comment = String
 
 -- pragma solidity ^0.8.24;
-type Pragma = String
+type Pragma = SemVer
 
-data Type = UInt256Type | StringType deriving (Show)
+data Type = UInt256Type | StringType deriving (Show, Eq)
 
-data Function = Function {
-  fname :: String,
-  fargs :: [String]
-} deriving (Show)
+data Function = Function
+  { fname :: String,
+    fargs :: [String]
+  }
+  deriving (Show, Eq)
 
+data Modifier = Public | Private deriving (Show, Eq)
 
-data Modifier = Public | Private deriving (Show)
+data Variable = Variable
+  { vmodifier :: Modifier,
+    vtyp :: Type,
+    vname :: String
+  }
+  deriving (Show, Eq)
 
-data Variable = Variable {
-  vmodifier :: Modifier,
-  vtyp :: Type,
-  vname :: String
-} deriving (Show)
-
-data Contract = Contract {
-  cfunctions :: [Function],
-  cvariables :: [Variable]
-} deriving (Show)
+data Contract = Contract
+  { cfunctions :: [Function],
+    cvariables :: [Variable]
+  }
+  deriving (Show, Eq)
 
 data AST
   = ASTSPDXComment SPDXComment
@@ -41,9 +60,34 @@ data AST
   | ASTModifier Modifier
   | ASTVariable Variable
   | ASTContract Contract
-  deriving (Show)
+  | Struct
+      { name :: String
+      }
+  deriving (Show, Eq)
 
--- TODO: replace MaybeT with ErrorT
-parseAST :: String -> MaybeT (State AST) String
-parseAST _ = MaybeT $ return Nothing
+-- // SPDX-License-Identifier: MIT
+pSPDXComment :: Parser AST
+pSPDXComment = do
+  _ <- pOneKeyword "// SPDX-License-Identifier:"
+  _ <- parseManySpaces
+  content <- pReadline
+  let (license, _) = break isSpace content
+  return (ASTSPDXComment license)
 
+-- // helloworld
+pComment :: Parser AST
+pComment = do
+  _ <- pOneKeyword "//"
+  ASTComment <$> pReadline
+
+-- pragma solidity ^0.8.24;
+pPragma :: Parser AST
+pPragma = do
+  _ <- parseManySpaces
+  _ <- pOneKeyword "pragma"
+  _ <- parseManySpaces
+  _ <- pOneKeyword "solidity"
+  _ <- parseManySpaces
+  version <- pSemVer
+  _ <- pOneKeyword ";"
+  return (ASTPragma version)
