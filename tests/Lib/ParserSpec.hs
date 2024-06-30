@@ -23,11 +23,11 @@ parseManyTokensSpec = do
           k1 <- pOne "type" id
           _ <- pMany pSpace
           ident <- pIdentifier
-          _ <- parseManySpaces
+          _ <- pManySpaces
           k2 <- pOneKeyword "struct"
-          _ <- parseManySpaces
+          _ <- pManySpaces
           _ <- pOne "{" id
-          _ <- parseManySpaces
+          _ <- pManySpaces
           _ <- pOne "}" id
           return (k1, ident, k2)
     let (result, s') = runState (runExceptT structCom) input
@@ -37,7 +37,7 @@ parseManyTokensSpec = do
           ("type", "Helloworld", "struct")
     it "should have correct state" $ do
       s' `shouldBe` " _+"
-      
+
 parseVersionSpec :: Spec
 parseVersionSpec = do
   describe "parse version ~0.8.24" $ do
@@ -46,8 +46,7 @@ parseVersionSpec = do
     it "get the correct comment string" $ do
       result
         `shouldBe` Right
-          ( 
-              SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Just Tilde}
+          ( SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Just Tilde}
           )
     it "left the correct state" $ do
       s `shouldBe` ""
@@ -57,8 +56,7 @@ parseVersionSpec = do
     it "get the correct comment string" $ do
       result
         `shouldBe` Right
-          ( 
-              SemVer {major = 0, minor = 0, patch = Nothing, semVerRangeMark = Just Wildcards}
+          ( SemVer {major = 0, minor = 0, patch = Nothing, semVerRangeMark = Just Wildcards}
           )
     it "left the correct state" $ do
       s `shouldBe` ""
@@ -68,8 +66,7 @@ parseVersionSpec = do
     it "get the correct comment string" $ do
       result
         `shouldBe` Right
-          ( 
-              SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Nothing}
+          ( SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Nothing}
           )
     it "left the correct state" $ do
       s `shouldBe` ""

@@ -21,6 +21,7 @@ import Data.Text (breakOn)
 import Data.Version (Version (Version))
 import Text.ParserCombinators.ReadP (manyTill)
 import Text.Read (Lexeme (String), get, readMaybe)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 
 -- todo: support version range like 1.2.x, 1.x, 1.2.3 - 2.3.4 later
 data SemVerRangeMark
@@ -37,8 +38,8 @@ data SemVer = SemVer
   }
   deriving (Show, Eq)
 
-
 type ErrMsg = String
+
 -- pass the type you want to pass, so use a instead of [a]
 type Parser a = ExceptT ErrMsg (State String) a
 
@@ -56,20 +57,48 @@ pUntil :: (Char -> Bool) -> Parser String
 pUntil cond = ExceptT $ state $ \s -> do
   let (left, right) = break cond s
   case right of
-    "" -> (Left "", s)
-    _ -> (Right left, tail right)
+    "" -> (Left "cannot find the until char", s)
+    _ -> (Right left, right)
 
 -- 0 or more times
 pMany :: Parser a -> Parser [a]
 pMany p = pMany1 p <|> return []
 
 -- 0 or 1 time
-pOpt :: Parser a -> a -> Parser a
-pOpt p v = p <|> return v
+pOpt :: Parser a -> Parser (Maybe a)
+pOpt p = ExceptT $ state $ \s -> do
+  let (result, s') = runParser p s
+  case result of
+    Left msg -> (Right Nothing, s)
+    Right d -> (Right $ Just d, s')
 
 -- 1 or more times
 pMany1 :: Parser a -> Parser [a]
 pMany1 p = liftA2 (:) p (pMany p)
+
+pManyStop :: (Eq a) => Parser a -> a -> Parser [a]
+pManyStop p v = ExceptT $ state $ \s -> do
+  let (result,s')=runParser p s
+  case result of
+    Left msg -> (Right [], s)
+    Right d -> 
+      if d == v 
+        then (Right [], s)
+        else do
+          let (r ,s'') = runParser (pManyStop p v) s'
+          (fmap (d:) r ,s'')
+
+pMany1Stop :: (Eq a) => Parser a -> a -> Parser [a]
+pMany1Stop p v= ExceptT $ state $ \s -> do
+  let (result,s')=runParser p s
+  case result of
+    Left msg -> (Left msg, s)
+    Right d -> 
+      if d == v 
+        then (Right [], s)
+        else do
+          let (r ,s'') = runParser (pManyStop p v) s'
+          (fmap (d:) r ,s'')
 
 -- one creates a parser to consume the given string
 -- and generate a type based on the passed constructor
@@ -83,8 +112,8 @@ safeTail :: [a] -> Maybe [a]
 safeTail [] = Nothing
 safeTail xs = Just $ tail xs
 
-parseManySpaces :: Parser [()]
-parseManySpaces = pMany pSpace
+pManySpaces :: Parser [()]
+pManySpaces = pMany pSpace
 
 pOneKeyword :: String -> Parser String
 pOneKeyword s = pOne s id
@@ -121,6 +150,7 @@ pNumber = ExceptT $ state $ \s -> do
     else
       (Right $ read num, left)
 
+-- todo: support underscore character
 pIdentifier :: Parser String
 pIdentifier = ExceptT $ state $ \s ->
   let (identifier, rest) = span isAlphaNum s
@@ -130,7 +160,7 @@ pIdentifier = ExceptT $ state $ \s ->
 
 pSemVer :: Parser SemVer
 pSemVer = do
-  _ <- parseManySpaces
+  _ <- pManySpaces
   rangeC <- pOneKeyword "^" <|> pOneKeyword "~" <|> pOneKeyword "*" <|> pure ""
   let char = case rangeC of
         "^" -> Just Caret
@@ -138,13 +168,19 @@ pSemVer = do
         "*" -> Just Wildcards
         _ -> Nothing
   case char of
-    Just Wildcards -> return (SemVer 
-      {semVerRangeMark = Just Wildcards, major = 0, minor = 0, patch = Nothing}
-      )
+    Just Wildcards ->
+      return
+        ( SemVer
+            { semVerRangeMark = Just Wildcards,
+              major = 0,
+              minor = 0,
+              patch = Nothing
+            }
+        )
     _ -> do
       major <- pNumber
       _ <- pOneKeyword "."
       minor <- pNumber
-      _ <- pOpt (pOneKeyword ".") ""
-      patch <- pOpt pNumber 0 -- todo: refne me
-      return (SemVer {major = major, minor = minor, patch = Just patch, semVerRangeMark = char})
+      _ <- pOpt (pOneKeyword ".")
+      patch <- pOpt pNumber -- todo: refine me
+      return (SemVer {major = major, minor = minor, patch = patch, semVerRangeMark = char})

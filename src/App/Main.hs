@@ -1,10 +1,12 @@
 module Main where
 
-import Lib.Parser
 import Lib.AST
+import Lib.Parser
+import Text.Read (Lexeme(String))
+import Control.Applicative ((<|>))
 
 main :: IO ()
 main = do
   print "hello hlinter"
-  let input = "pragma solidity 0.8.24;"
-  print $ runParser pPragma input
+  let str = " ( uint256 name) "
+  print $ runParser pFunctionArgsQuoted str
