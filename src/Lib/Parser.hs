@@ -15,13 +15,13 @@ import Control.Monad.State
     runState,
   )
 import Control.Monad.Trans.Except (ExceptT (ExceptT), runExcept, runExceptT)
+import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 import Data.Char (isAlpha, isAlphaNum, isDigit, isSpace)
 import Data.List (stripPrefix)
 import Data.Text (breakOn)
 import Data.Version (Version (Version))
 import Text.ParserCombinators.ReadP (manyTill)
 import Text.Read (Lexeme (String), get, readMaybe)
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 
 -- todo: support version range like 1.2.x, 1.x, 1.2.3 - 2.3.4 later
 data SemVerRangeMark
@@ -78,27 +78,27 @@ pMany1 p = liftA2 (:) p (pMany p)
 
 pManyStop :: (Eq a) => Parser a -> a -> Parser [a]
 pManyStop p v = ExceptT $ state $ \s -> do
-  let (result,s')=runParser p s
+  let (result, s') = runParser p s
   case result of
     Left msg -> (Right [], s)
-    Right d -> 
-      if d == v 
+    Right d ->
+      if d == v
         then (Right [], s)
         else do
-          let (r ,s'') = runParser (pManyStop p v) s'
-          (fmap (d:) r ,s'')
+          let (r, s'') = runParser (pManyStop p v) s'
+          (fmap (d :) r, s'')
 
 pMany1Stop :: (Eq a) => Parser a -> a -> Parser [a]
-pMany1Stop p v= ExceptT $ state $ \s -> do
-  let (result,s')=runParser p s
+pMany1Stop p v = ExceptT $ state $ \s -> do
+  let (result, s') = runParser p s
   case result of
     Left msg -> (Left msg, s)
-    Right d -> 
-      if d == v 
+    Right d ->
+      if d == v
         then (Right [], s)
         else do
-          let (r ,s'') = runParser (pManyStop p v) s'
-          (fmap (d:) r ,s'')
+          let (r, s'') = runParser (pManyStop p v) s'
+          (fmap (d :) r, s'')
 
 -- one creates a parser to consume the given string
 -- and generate a type based on the passed constructor
@@ -120,7 +120,7 @@ pOneKeyword s = pOne s id
 
 pSpace :: Parser ()
 pSpace = ExceptT $ state $ \s -> do
-  if s /= "" && head s == ' '
+  if s /= "" && (head s == ' ' || head s == '\n')
     then (Right (), tail s)
     else
       (Left "", s)

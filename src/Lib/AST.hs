@@ -1,14 +1,22 @@
 module Lib.AST where
 
+import Control.Applicative (Alternative (empty), (<|>))
 import Control.Monad.Except (ExceptT (ExceptT))
+import Control.Monad.RWS (MonadReader (ask))
 import Control.Monad.State
 import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
 import Data.Char (isSpace)
+import Data.Maybe (catMaybes, fromMaybe, mapMaybe)
+import Debug.Trace (trace)
+import GHC.Base (Applicative (..))
+import GHC.Generics (URec (UInt))
 import Lib.Parser
   ( Parser,
     SemVer,
     pIdentifier,
     pMany,
+    pMany1,
+    pMany1Stop,
     pManySpaces,
     pOne,
     pOneKeyword,
@@ -17,13 +25,9 @@ import Lib.Parser
     pSemVer,
     pSpace,
     pUntil,
-    runParser, pMany1, pMany1Stop,
+    runParser,
   )
-import GHC.Generics (URec(UInt))
-import Control.Applicative ((<|>), Alternative (empty))
-import GHC.Base (Applicative(..))
-import Data.Maybe (fromMaybe)
-import Text.Read (Lexeme(String))
+import Text.Read (Lexeme (String))
 
 -- // SPDX-License-Identifier: MIT
 type SPDXComment = String
@@ -50,15 +54,25 @@ data Function = Function
 
 data Modifier = Public | Private deriving (Show, Eq)
 
+parseModifer :: String -> Modifier
+parseModifer str =
+  case str of
+    "public" -> Public
+    "private" -> Private
+    -- todo: check the default visibility of the variable
+    _ -> Public -- apply the default value to it
+
 data Variable = Variable
   { vmodifier :: Modifier,
     vtyp :: Type,
-    vname :: String
+    vname :: String,
+    vcomment :: Maybe Comment -- attached comment
   }
   deriving (Show, Eq)
 
 data Contract = Contract
-  { cfunctions :: [Function],
+  { cname :: String,
+    cfunctions :: [Function],
     cvariables :: [Variable]
   }
   deriving (Show, Eq)
@@ -139,11 +153,41 @@ pContract = do
   _ <- pManySpaces
   _ <- pOneKeyword keywordContract
   _ <- pManySpaces
+  name <- pIdentifier
+  _ <- pManySpaces
   _ <- pOneKeyword leftCurlyBrace
-  -- todo: add function and variable support here
-  _ <- pUntil (== head rightCurlyBrace)
+  _ <- pManySpaces
+  fields <-
+    pMany
+      ( fmap CtFunction pFunction
+          <|> fmap CtVariable pVariable
+          <|> fmap CtComment pComment
+      )
+
   _ <- pOne rightCurlyBrace id
-  return Contract {}
+  let fns = mapMaybe getCtFunction fields
+  let vars = mapMaybe getCtVariable fields
+  return
+    Contract
+      { cname = name,
+        cfunctions = fns,
+        cvariables = vars
+      }
+
+data ContractField
+  = CtFunction Function
+  | CtVariable Variable
+  | CtComment Comment
+  | CtEmptyLine
+  deriving (Eq)
+
+getCtFunction :: ContractField -> Maybe Function
+getCtFunction (CtFunction f) = Just f
+getCtFunction _ = Nothing
+
+getCtVariable :: ContractField -> Maybe Variable
+getCtVariable (CtVariable v) = Just v
+getCtVariable _ = Nothing
 
 pModifier :: Parser String
 pModifier = do
@@ -163,7 +207,7 @@ pType = do
     "string" -> return StringType
     _ -> return TODO
 
-pFunctionHelper :: Parser (Type,String)
+pFunctionHelper :: Parser (Type, String)
 pFunctionHelper = do
   _ <- pManySpaces
   _ <- pOne "," id
@@ -171,13 +215,13 @@ pFunctionHelper = do
   tpy <- pType
   ident <- pIdentifier
   return (tpy, ident)
-        
+
 -- parse the content of 'bytes32 newName, bytes32 oldName' in the function below
 -- function changeName(bytes32 newName, bytes32 oldName) public {
 pFunctionArgs :: Parser [(Type, String)]
 pFunctionArgs = ExceptT $ state $ \s -> do
   let (result, s') = runParser (liftA2 (,) pType pIdentifier) s
-      re = fmap (\a -> [a]) result
+      re = fmap (: []) result
   case re of
     Left msg -> (Left "no args in function argument list", s)
     Right firstArg -> do
@@ -185,7 +229,6 @@ pFunctionArgs = ExceptT $ state $ \s -> do
       case argsResult of
         Left msg -> (Left msg, s'')
         Right args -> (Right (firstArg ++ args), s'')
-  
 
 pFunctionTyp :: Parser Type
 pFunctionTyp = do
@@ -226,14 +269,42 @@ pFunctionArgsQuoted = do
 pFunctionModifiers :: Parser [String]
 pFunctionModifiers = do
   _ <- pManySpaces
-  modifiers <- pMany1Stop (
-                    pIdentifier
-                    <|> fmap (const "") pSpace) "returns"
+  modifiers <-
+    pMany1Stop
+      ( pIdentifier
+          <|> fmap (const "") pSpace
+      )
+      "returns"
   _ <- pManySpaces
   -- we need to filter the empty string,
   -- because we omit the empty string for space
   -- todo: think about a better way, for example refine pMany1
-  return $ filter (/="") modifiers
+  return $ filter (/= "") modifiers
+
+-- todo: whether it's called variable?
+-- 'uint256 public count;' under the contract scope
+pVariable :: Parser Variable
+pVariable = do
+  _ <- pManySpaces
+  tp <- pType
+  _ <- pManySpaces
+  -- todo: check whether the modifer is optional
+  -- todo: check whether the modifier could be many
+  modifiers <- pModifier
+  _ <- pManySpaces
+  name <- pIdentifier
+  _ <- pManySpaces
+  _ <- pOne ";" id
+  _ <- pManySpaces
+  comment <- pOpt pComment
+  return
+    ( Variable
+        { vmodifier = parseModifer modifiers,
+          vtyp = tp,
+          vname = name,
+          vcomment = comment
+        }
+    )
 
 pFunction :: Parser Function
 pFunction = do
@@ -249,12 +320,14 @@ pFunction = do
   -- todo: parse the function body
   _ <- pUntil (== head rightCurlyBrace)
   _ <- pOne rightCurlyBrace id
-  return (Function {
-    fname = name, 
-    fargs = args,
-    -- fReturnTyp = Nothing,
-    fReturnTyp = optReturns,
-    fmodifiers = modifiers})
-
+  return
+    ( Function
+        { fname = name,
+          fargs = args,
+          -- fReturnTyp = Nothing,
+          fReturnTyp = optReturns,
+          fmodifiers = modifiers
+        }
+    )
 
 -- pVariable :: Parser Variable

@@ -15,6 +15,94 @@ spec = do
   parseCommentSpec
   parseSPDXCommentSpec
   parsePragmaSpec
+  parseContractVariableSpec
+  parseContractSpec
+
+parseContractSpec :: Spec
+parseContractSpec = do
+  isCtSpec
+  describe "parse simple variable" $ do
+    let constractStr =
+          "contract Counter { \
+          \   uint256 public count;\
+          \   // Function to get the current count \n \
+          \   function get() public view returns (uint256) {\
+          \       return count;\
+          \    } \
+          \}"
+    let (result, s) = runParser pContract constractStr
+    it "get the correct contract" $ do
+      let fns =
+            [ Function
+                { fmodifiers = ["public", "view"],
+                  fname = "get",
+                  fargs = [],
+                  fReturnTyp = Just UInt256Type
+                }
+            ]
+      let vars =
+            [ Variable
+                { vmodifier = Public,
+                  vtyp = UInt256Type,
+                  vname = "count",
+                  vcomment = Just " Function to get the current count "
+                }
+            ]
+      result
+        `shouldBe` Right
+          Contract
+            { cname = "Counter",
+              cfunctions = fns,
+              cvariables = vars
+            }
+    it "get the correct state" $ do
+      s `shouldBe` ""
+
+parseContractVariableSpec :: Spec
+parseContractVariableSpec = do
+  describe "parse simple variable" $ do
+    let fnStr = "uint256 public name;"
+    let (result, s) = runParser pVariable fnStr
+    it "get the correct variable" $ do
+      result
+        `shouldBe` Right
+          Variable
+            { vmodifier = Public,
+              vtyp = UInt256Type,
+              vname = "name",
+              vcomment = Nothing
+            }
+    it "remain the correct state" $ do
+      s `shouldBe` ""
+  describe "parse simple variable with a comment" $ do
+    let fnStr = "uint256 public name; // name refers to the contract name"
+    let (result, s) = runParser pVariable fnStr
+    it "get the correct function" $ do
+      result
+        `shouldBe` Right
+          Variable
+            { vmodifier = Public,
+              vtyp = UInt256Type,
+              vname = "name",
+              vcomment = Just " name refers to the contract name"
+            }
+    it "remain the correct state" $ do
+      s `shouldBe` ""
+
+isCtSpec :: Spec
+isCtSpec = do
+  describe "test IsCt function" $ do
+    let f =
+          Function
+            { fReturnTyp = Just UInt256Type,
+              fargs = [],
+              fmodifiers = ["public"],
+              fname = "inc"
+            }
+    it "should return just function" $ do
+      getCtFunction (CtFunction f) `shouldBe` Just f
+    it "should return nothing because it's a varaible" $ do
+      getCtFunction (CtVariable Variable {}) `shouldBe` Nothing
 
 parseFunctionSpec :: Spec
 parseFunctionSpec = do
@@ -22,37 +110,67 @@ parseFunctionSpec = do
   parseFunctionModifiers
   parseReturnsClosureSpec
   parseFunctionArgsSpec
+  parseFunctionSigantureSpec
+
+parseFunctionSigantureSpec :: Spec
+parseFunctionSigantureSpec = do
   describe "parse simple function" $ do
-    let fnStr = "\
-    \ function inc() public {\ 
-    \    count += 1; \
-    \}"
+    let fnStr =
+          "\
+          \ function inc() public {\
+          \    count += 1; \
+          \}"
     let (result, s) = runParser pFunction fnStr
-    it "get the correct function" $ do 
-      result `shouldBe` Right Function { 
-        fReturnTyp = Nothing,
-        fargs = [],
-        fmodifiers = ["public"],
-        fname = "inc"
-      }
+    it "get the correct function" $ do
+      result
+        `shouldBe` Right
+          Function
+            { fReturnTyp = Nothing,
+              fargs = [],
+              fmodifiers = ["public"],
+              fname = "inc"
+            }
     it "remain the correct state" $ do
       s `shouldBe` ""
 
   describe "parse simple function with return value" $ do
-    let fnStr = "\
-    \ function inc() public returns (uint256) {\ 
-    \    count += 1; \
-    \}"
+    let fnStr =
+          "\
+          \ function inc() public returns (uint256) {\
+          \    count += 1; \
+          \}"
     let (result, s) = runParser pFunction fnStr
-    it "get the correct function" $ do 
-      result `shouldBe` Right Function { 
-        fReturnTyp = Just UInt256Type,
-        fargs = [],
-        fmodifiers = ["public"],
-        fname = "inc"
-      }
+    it "get the correct function" $ do
+      result
+        `shouldBe` Right
+          Function
+            { fReturnTyp = Just UInt256Type,
+              fargs = [],
+              fmodifiers = ["public"],
+              fname = "inc"
+            }
     it "remain the correct state" $ do
       s `shouldBe` ""
+  -- this test is used to ensure the function won't consume the other right curly bracket
+  describe "parse function with additional } " $ do
+    let fnStr =
+          "\
+          \   function inc() public returns (uint256) {\
+          \      count += 1; \
+          \   }\
+          \}"
+    let (result, s) = runParser pFunction fnStr
+    it "get the correct function" $ do
+      result
+        `shouldBe` Right
+          Function
+            { fReturnTyp = Just UInt256Type,
+              fargs = [],
+              fmodifiers = ["public"],
+              fname = "inc"
+            }
+    it "remain the correct state" $ do
+      s `shouldBe` "}"
 
 parseFunctionArgsSpec :: Spec
 parseFunctionArgsSpec = do
@@ -62,15 +180,18 @@ parseFunctionArgsSpec = do
     it "could parse the args" $ do
       result `shouldBe` Right [(UInt256Type, "name")]
     it "should leave correct state" $ do
-      s `shouldBe` ""  
+      s `shouldBe` ""
   describe "parse empty arg with quotes" $ do
     let str = "uint256 name, string newname"
     let (result, s) = runParser pFunctionArgs str
     it "could parse the args" $ do
-      result `shouldBe` Right [
-        (UInt256Type, "name"), (StringType, "newname")]
+      result
+        `shouldBe` Right
+          [ (UInt256Type, "name"),
+            (StringType, "newname")
+          ]
     it "should leave correct state" $ do
-      s `shouldBe` ""  
+      s `shouldBe` ""
 
 parseFunctionQuotedArgs :: Spec
 parseFunctionQuotedArgs = do
@@ -99,29 +220,30 @@ parseFunctionQuotedArgs = do
     let str = " ( uint256 name, string oldname) "
     let (result, s) = runParser pFunctionArgsQuoted str
     it "could parse the args" $ do
-      result `shouldBe` Right [
-          (UInt256Type, "name"),
-          (StringType, "oldname")
+      result
+        `shouldBe` Right
+          [ (UInt256Type, "name"),
+            (StringType, "oldname")
           ]
     it "should leave correct state" $ do
       s `shouldBe` ""
-  
+
 parseFunctionModifiers :: Spec
 parseFunctionModifiers = do
   describe "parse function modifiers" $ do
     let str = "public  view"
     let (result, s) = runParser pFunctionModifiers str
     it "could parse the args" $ do
-      result `shouldBe` Right ["public","view"]
+      result `shouldBe` Right ["public", "view"]
     it "should leave correct state" $ do
       s `shouldBe` ""
   describe "parse function modifiers with curly bracket" $ do
     let str = "public  view {"
     let (result, s) = runParser pFunctionModifiers str
     it "could parse the args" $ do
-      result `shouldBe` Right ["public","view"]
+      result `shouldBe` Right ["public", "view"]
     it "should leave correct state" $ do
-      s `shouldBe` "{"  
+      s `shouldBe` "{"
   describe "parse function modifiers" $ do
     let str = "public {"
     let (result, s) = runParser pFunctionModifiers str
@@ -133,9 +255,9 @@ parseFunctionModifiers = do
     let str = "public  view returns {"
     let (result, s) = runParser pFunctionModifiers str
     it "could parse the args" $ do
-      result `shouldBe` Right ["public","view"]
+      result `shouldBe` Right ["public", "view"]
     it "should leave correct state" $ do
-      s `shouldBe` "returns {" 
+      s `shouldBe` "returns {"
 
 parseReturnsClosureSpec :: Spec
 parseReturnsClosureSpec = do
@@ -145,8 +267,7 @@ parseReturnsClosureSpec = do
     it "could parse the args" $ do
       result `shouldBe` Right UInt256Type
     it "should leave correct state" $ do
-      s `shouldBe` "{" 
-
+      s `shouldBe` "{"
 
 parseCommentSpec :: Spec
 parseCommentSpec = do
