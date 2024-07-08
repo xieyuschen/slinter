@@ -2,22 +2,24 @@
 
 module Lib.Parser where
 
-import Control.Applicative (Alternative ((<|>)), liftA2, liftA3)
-import Control.Arrow (first)
+import Control.Applicative
+  ( Alternative ((<|>)),
+    Applicative (liftA2),
+  )
+import Control.Arrow (Arrow (first))
 import Control.Monad.Except
-import Control.Monad.Reader (MonadReader (ask), Reader, ReaderT (ReaderT), runReader)
+  ( ExceptT (..),
+    MonadError (throwError),
+    guard,
+    runExceptT,
+  )
 import Control.Monad.State
-  ( MonadState (put, state),
+  ( MonadState (get, put, state),
     State,
-    StateT (..),
-    evalState,
     runState,
   )
-import Control.Monad.Trans.Except (ExceptT (ExceptT), runExcept, runExceptT)
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
-import Data.Char (isAlpha, isAlphaNum, isDigit, isNumber, isSpace)
+import Data.Char (isAlpha, isDigit, isNumber)
 import Data.List (stripPrefix)
-import Text.Read (Lexeme (String), get, readMaybe)
 
 -- todo: support version range like 1.2.x, 1.x, 1.2.3 - 2.3.4 later
 data SemVerRangeMark
@@ -65,7 +67,7 @@ pOpt :: Parser a -> Parser (Maybe a)
 pOpt p = ExceptT $ state $ \s -> do
   let (result, s') = runParser p s
   case result of
-    Left msg -> first Right (Nothing, s)
+    Left _ -> first Right (Nothing, s)
     Right d -> first Right (Just d, s')
 
 -- 1 or more times
@@ -76,7 +78,7 @@ pManyStop :: (Eq a) => Parser a -> a -> Parser [a]
 pManyStop p v = ExceptT $ state $ \s -> do
   let (result, s') = runParser p s
   case result of
-    Left msg -> first Right ([], s)
+    Left _ -> first Right ([], s)
     Right d ->
       if d == v
         then first Right ([], s)
@@ -149,6 +151,24 @@ pNumber = ExceptT $ state $ \s -> do
     else
       first Right (read num, left)
 
+pBool :: Parser Bool
+pBool = do
+  s <- get
+  guard $ (\x -> length x >= 4) s
+  let s' = drop 4 s
+  case take 4 s of
+    "true" -> do
+      put s'
+      return True
+    "fals" -> do
+      guard $ not $ null s'
+      case take 1 s' of
+        "e" -> do
+          put $ drop 1 s'
+          return False
+        _ -> throwError "not a bool literal"
+    _ -> throwError "not a bool literal"
+
 isUnderscore :: Char -> Bool
 isUnderscore = (== '_')
 
@@ -180,9 +200,9 @@ pSemVer = do
             }
         )
     _ -> do
-      major <- pNumber
+      majorV <- pNumber
       _ <- pOneKeyword "."
-      minor <- pNumber
+      minorV <- pNumber
       _ <- pOpt (pOneKeyword ".")
-      patch <- pOpt pNumber -- todo: refine me
-      return (SemVer {major = major, minor = minor, patch = patch, semVerRangeMark = char})
+      patchV <- pOpt pNumber -- todo: refine me
+      return (SemVer {major = majorV, minor = minorV, patch = patchV, semVerRangeMark = char})

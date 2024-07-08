@@ -1,22 +1,40 @@
 module Lib.AST.Function where
 
-import Control.Applicative (Alternative (empty), (<|>))
-import Control.Arrow (Arrow (first))
-import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), guard)
-import Control.Monad.State (MonadState (..))
-import Control.Monad.Trans.Except (ExceptT (ExceptT))
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
-import Data.Bits (Bits (bit))
-import Data.Char (isAlpha, isAlphaNum, isDigit, isNumber, isSpace)
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe)
-import Data.Text.Lazy.Builder.Int (decimal)
-import Debug.Trace (trace)
-import GHC.Base (Applicative (..), Type)
-import GHC.Generics (URec (UInt))
+import Control.Applicative
+import Control.Monad.Except
+  ( ExceptT (ExceptT),
+    MonadError (throwError),
+  )
+import Control.Monad.State (MonadState (state))
+import Data.Maybe (fromMaybe, isNothing, mapMaybe)
+import GHC.Base ()
 import Lib.AST.Model
-import Lib.AST.Type
+  ( ContractField (CtFunction, CtVariable),
+    Function (..),
+    SType,
+    StateVariable,
+    VisibilitySpecifier (..),
+    keywordFunction,
+    keywordReturns,
+    leftCurlyBrace,
+    leftParenthesis,
+    rightCurlyBrace,
+    rightParenthesis,
+  )
+import Lib.AST.Type (pType)
 import Lib.Parser
-import Text.Read (Lexeme (String), readMaybe)
+  ( Parser,
+    pIdentifier,
+    pMany,
+    pMany1Stop,
+    pManySpaces,
+    pOne,
+    pOneKeyword,
+    pOpt,
+    pSpace,
+    pUntil,
+    runParser,
+  )
 
 getCtFunction :: ContractField -> Maybe Function
 getCtFunction (CtFunction f) = Just f
@@ -42,7 +60,7 @@ pFunctionArgs = ExceptT $ state $ \s -> do
   let (result, s') = runParser (liftA2 (,) pType pIdentifier) s
       re = fmap (: []) result
   case re of
-    Left msg -> (Left "no args in function argument list", s)
+    Left msg -> (Left $ "no args in function argument list: " ++ msg, s)
     Right firstArg -> do
       let (argsResult, s'') = runParser (pMany pFunctionHelper) s'
       case argsResult of

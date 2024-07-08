@@ -1,24 +1,32 @@
 module Lib.AST.Contract where
 
-import Control.Applicative (Alternative (empty), (<|>))
-import Control.Arrow (Arrow (first))
-import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), guard)
-import Control.Monad.State (MonadState (..))
-import Control.Monad.Trans.Except (ExceptT (ExceptT))
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
-import Data.Bits (Bits (bit))
-import Data.Char (isAlpha, isAlphaNum, isDigit, isNumber, isSpace)
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe)
-import Data.Text.Lazy.Builder.Int (decimal)
-import Debug.Trace (trace)
-import GHC.Base (Applicative (..), Type)
-import GHC.Generics (URec (UInt))
-import Lib.AST.Comment
+import Control.Applicative (Alternative ((<|>)))
+import Data.Maybe (mapMaybe)
+import Lib.AST.Comment (pComment)
 import Lib.AST.Function
+  ( getCtFunction,
+    getCtVariable,
+    pFunction,
+    pVisibilitySpecifier,
+  )
 import Lib.AST.Model
-import Lib.AST.Type
+  ( Contract (..),
+    ContractField (CtComment, CtFunction, CtVariable),
+    StateVariable (..),
+    keywordContract,
+    leftCurlyBrace,
+    rightCurlyBrace,
+  )
+import Lib.AST.Type (pType)
 import Lib.Parser
-import Text.Read (Lexeme (String), readMaybe)
+  ( Parser,
+    pIdentifier,
+    pMany,
+    pManySpaces,
+    pOne,
+    pOneKeyword,
+    pOpt,
+  )
 
 -- contract Counter {
 --     uint256 public count;
@@ -34,7 +42,7 @@ pContract = do
     pManySpaces
       >> pOneKeyword keywordContract
       >> pManySpaces
-  name <- pIdentifier
+  contractName <- pIdentifier
   _ <-
     pManySpaces
       >> pOneKeyword leftCurlyBrace
@@ -51,7 +59,7 @@ pContract = do
   let vars = mapMaybe getCtVariable fields
   return
     Contract
-      { cname = name,
+      { cname = contractName,
         cfunctions = fns,
         cvariables = vars
       }
@@ -63,7 +71,7 @@ pStateVariable = do
   tp <- pManySpaces >> pType
   -- state variable only has visiblity specifier, we don't need to parse the modifiers
   specifier <- pManySpaces >> pVisibilitySpecifier
-  name <- pManySpaces >> pIdentifier
+  stateName <- pManySpaces >> pIdentifier
   _ <-
     pManySpaces
       >> pOne ";" id
@@ -72,7 +80,7 @@ pStateVariable = do
     ( StateVariable
         { svVisibleSpecifier = specifier,
           svType = tp,
-          svName = name,
+          svName = stateName,
           svComment = comment
         }
     )

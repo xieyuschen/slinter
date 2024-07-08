@@ -101,4 +101,13 @@ isCtSpec = do
     it "should return just function" $ do
       getCtFunction (CtFunction f) `shouldBe` Just f
     it "should return nothing because it's a varaible" $ do
-      getCtFunction (CtVariable StateVariable {}) `shouldBe` Nothing
+      getCtFunction
+        ( CtVariable
+            StateVariable
+              { svVisibleSpecifier = VsPublic,
+                svType = STypeBool,
+                svName = "",
+                svComment = Nothing -- attached comment
+              }
+        )
+        `shouldBe` Nothing

@@ -1,20 +1,19 @@
 module Lib.AST.Comment where
 
-import Control.Applicative (Alternative (empty), (<|>))
-import Control.Arrow (Arrow (first))
-import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), guard)
-import Control.Monad.State (MonadState (..))
-import Control.Monad.Trans.Except (ExceptT (ExceptT))
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
-import Data.Bits (Bits (bit))
-import Data.Char (isAlpha, isAlphaNum, isDigit, isNumber, isSpace)
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe)
-import Data.Text.Lazy.Builder.Int (decimal)
-import Debug.Trace (trace)
-import GHC.Base (Applicative (..), Type)
+import Data.Char (isSpace)
 import Lib.AST.Model
+  ( Comment,
+    Pragma,
+    keywordPragma,
+    keywordSolidity,
+  )
 import Lib.Parser
-import Text.Read (Lexeme (String), readMaybe)
+  ( Parser,
+    pManySpaces,
+    pOneKeyword,
+    pReadline,
+    pSemVer,
+  )
 
 -- // SPDX-License-Identifier: MIT
 pSPDXComment :: Parser String

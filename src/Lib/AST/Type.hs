@@ -1,21 +1,46 @@
 module Lib.AST.Type where
 
-import Control.Applicative (Alternative (empty), (<|>))
+import Control.Applicative ()
 import Control.Arrow (Arrow (first))
-import Control.Monad.Except (ExceptT (ExceptT), MonadError (throwError), guard)
-import Control.Monad.State (MonadState (..))
-import Control.Monad.Trans.Except (ExceptT (ExceptT))
-import Control.Monad.Trans.Maybe (MaybeT (MaybeT))
-import Data.Bits (Bits (bit))
-import Data.Char (isAlpha, isAlphaNum, isDigit, isNumber, isSpace)
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe)
-import Data.Text.Lazy.Builder.Int (decimal)
-import Debug.Trace (trace)
-import GHC.Base (Applicative (..), Type)
-import GHC.Generics (URec (UInt))
+import Control.Monad.Except
+import Control.Monad.State (MonadState (get, put, state))
+import Data.Char (isAlpha, isNumber)
+import Data.Maybe (fromMaybe, isJust)
+import GHC.Base
 import Lib.AST.Model
+  ( BitLengthDesc (..),
+    Mapping (..),
+    SAlias (..),
+    SType
+      ( STypeAddress,
+        STypeAlias,
+        STypeBool,
+        STypeBytes,
+        STypeCustom,
+        STypeFixed,
+        STypeInt,
+        STypeMapping,
+        STypePayableAddress,
+        STypeString,
+        STypeStructure,
+        STypeUFixed,
+        STypeUint
+      ),
+    STypeEnum (..),
+    Structure (..),
+  )
 import Lib.Parser
-import Text.Read (Lexeme (String), readMaybe)
+  ( Parser,
+    isUnderscore,
+    pIdentifier,
+    pMany,
+    pManySpaces,
+    pOne,
+    pOpt,
+    runParser,
+  )
+import Text.Read (readMaybe)
+import Prelude hiding (foldr)
 
 -- int / uint: Signed and unsigned integers of various sizes.
 -- Keywords uint8 to uint256 in steps of 8 (unsigned of 8 up to 256 bits) and int8 to int256.

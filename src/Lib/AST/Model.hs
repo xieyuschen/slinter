@@ -2,26 +2,52 @@ module Lib.AST.Model where
 
 import Lib.Parser (SemVer)
 
+keywordLogicalOr :: String
+keywordLogicalOr = "||"
+
+keywordLogicalAnd :: String
+keywordLogicalAnd = "&&"
+
+keywordEquality :: String
+keywordEquality = "=="
+
+keywordLogicalNegation :: String
+keywordLogicalNegation = "!"
+
+keywordInequality :: String
+keywordInequality = "!="
+
+keywordContract :: String
 keywordContract = "contract"
 
+keywordPragma :: String
 keywordPragma = "pragma"
 
+keywordSolidity :: String
 keywordSolidity = "solidity"
 
+keywordCommentPrefix :: String
 keywordCommentPrefix = "//"
 
+semicolon :: String
 semicolon = ";"
 
+leftCurlyBrace :: String
 leftCurlyBrace = "{"
 
+rightCurlyBrace :: String
 rightCurlyBrace = "}"
 
+leftParenthesis :: String
 leftParenthesis = "("
 
+rightParenthesis :: String
 rightParenthesis = ")"
 
+leftSquareBracket :: String
 leftSquareBracket = "["
 
+rightSquareBracket :: String
 rightSquareBracket = "]"
 
 data ContractField
@@ -128,12 +154,42 @@ data BitLengthDesc
   | BitLengthWithDecimal Int Int -- the first is the bit length and the second is the decimal length
   deriving (Show, Eq)
 
+keywordFunction :: String
 keywordFunction = "function"
 
+keywordReturns :: String
 keywordReturns = "returns"
 
 data STypeEnum = STypeEnum
   { ename :: String,
     eelems :: [String]
+  }
+  deriving (Show, Eq)
+
+data Literal
+  = LNum Int
+  | LBool Bool
+  | LString String
+  deriving (Show, Eq)
+
+data SExpression
+  = Expr Exprv
+  | ExprVar String -- the type is a variable
+  | ExprL Literal
+  deriving (Show, Eq)
+
+data Operator
+  = LogicalAnd
+  | LogicalOr
+  | LogicalNegation
+  | LogicalEqual
+  | LogicalInequal
+  deriving (Show, Eq)
+
+-- expression stands for a bool expression by now, for example 'a&&b' and 'a||b'
+data Exprv = Exprv
+  { leftOperand :: SExpression,
+    rightOperand :: SExpression,
+    operator :: Operator
   }
   deriving (Show, Eq)
