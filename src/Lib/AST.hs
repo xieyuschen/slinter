@@ -25,6 +25,24 @@ type Comment = String
 -- pragma solidity ^0.8.24;
 type Pragma = SemVer
 
+data Structure = Structure
+  { structName :: String,
+    structFields :: [(SType, String)]
+  }
+  deriving (Show, Eq)
+
+data Mapping = Mapping
+  { mKeyType :: SType,
+    mValueType :: SType
+  }
+  deriving (Show, Eq)
+
+data SAlias = SAlias
+  { salias :: String,
+    saliasOriginType :: SType
+  }
+  deriving (Show, Eq)
+
 data SType -- solidity type
   = STypeString
   | STypeBool
@@ -36,10 +54,12 @@ data SType -- solidity type
     STypeAddress
   | STypePayableAddress
   | STypeBytes Int
-  | STypeMapping SType SType
+  | STypeMapping Mapping
   | STypeArrayN SType Int
   | STypeArray SType
   | STypeCustom String
+  | STypeAlias SAlias
+  | STypeStructure Structure
   | CustomTODO
   deriving (Show, Eq)
 
@@ -237,8 +257,6 @@ extractBitLengthWithDecimal _ = Nothing
 -- and we support the standard types in solidity only here, the custom one won't be treated as this
 -- it consumes the alpha letters from the beginning, and tries to parse the following parts as a integer
 -- if it fails, it will treat the indentifier as a whole and parses a result without number part
--- todo: support fixed and ufixed, in the format of fixedMxN, where M is a multiple of 8 and range from 8 to 256 inclusive
--- the N range from 0 to 80 inclusive
 pTypeWithBitLength :: Parser (String, Maybe BitLengthDesc)
 pTypeWithBitLength = ExceptT $ state $ \s ->
   let (prefix, s') = span isAlpha s
@@ -274,8 +292,8 @@ pTypeWithBitLength = ExceptT $ state $ \s ->
                               -- we will restore and consume it as an identifier
                               (Right (ident, Nothing), rest)
 
-pSimpleType :: Parser SType
-pSimpleType = do
+pTypeSimple :: Parser SType
+pTypeSimple = do
   (tpy, bit) <- pTypeWithBitLength
   _ <- pManySpaces
   case tpy of
@@ -311,7 +329,6 @@ pSimpleType = do
 -- int / uint: Signed and unsigned integers of various sizes.
 -- Keywords uint8 to uint256 in steps of 8 (unsigned of 8 up to 256 bits) and int8 to int256.
 -- uint and int are aliases for uint256 and int256, respectively.
--- todo: analyzes the types with more details, such as int128 as STypeInt 128, and so on...
 pType :: Parser SType
 pType = do
   _ <- pManySpaces
@@ -320,10 +337,10 @@ pType = do
   case result of
     Right m -> do
       put s'
-      return m
+      return $ STypeMapping m
     _ -> do
       put s -- retore the stack
-      pSimpleType
+      pTypeSimple
 
 pFunctionHelper :: Parser (SType, String)
 pFunctionHelper = do
@@ -349,8 +366,8 @@ pFunctionArgs = ExceptT $ state $ \s -> do
         Left msg -> (Left msg, s'')
         Right args -> (Right (firstArg ++ args), s'')
 
-pFunctionTyp :: Parser SType
-pFunctionTyp = do
+pFunctionReturnTypeWithQuote :: Parser SType
+pFunctionReturnTypeWithQuote = do
   _ <-
     pManySpaces
       >> pOne "(" id
@@ -366,12 +383,12 @@ keywordFunction = "function"
 keywordReturns = "returns"
 
 -- consume 'returns (uint256)' function return part
-pReturnsClosure :: Parser SType
-pReturnsClosure = do
+pReturnsClause :: Parser SType
+pReturnsClause = do
   _ <-
     pManySpaces
       >> pOne keywordReturns id
-  tp <- pFunctionTyp
+  tp <- pFunctionReturnTypeWithQuote
   _ <- pManySpaces
   return tp
 
@@ -406,6 +423,7 @@ pFunctionDecorators = do
   return $ filter (/= "") modifiers
 
 -- 'uint256 public count;' under the contract scope
+-- todo: shall we call it pContractStateVariable? check it when we implement to parse the function body
 pStateVariable :: Parser StateVariable
 pStateVariable = do
   tp <- pManySpaces >> pType
@@ -440,7 +458,7 @@ pFunction = do
     1 -> return $ head specifiers
     _ -> throwError "visibility specifier should contain only one for each function"
   let modifiers = filter (isNothing . toVisibilitySpecifier) decorators
-  optReturns <- pOpt pReturnsClosure
+  optReturns <- pOpt pReturnsClause
   _ <-
     pManySpaces
       >> pOne leftCurlyBrace id
@@ -464,7 +482,7 @@ pFunction = do
 -- ValueType can be any type, including mappings, arrays and structs.
 -- KeyName and ValueName are optional (so mapping(KeyType => ValueType) works as well)
 -- and can be any valid identifier that is not a type.
-pTypeMapping :: Parser SType
+pTypeMapping :: Parser Mapping
 pTypeMapping = do
   _ <- pManySpaces >> pOne "mapping(" id >> pManySpaces
   keyTyp <- pType
@@ -473,14 +491,98 @@ pTypeMapping = do
   _ <- pManySpaces >> pOne "=>" id >> pManySpaces
   valTpy <- pType
   _ <- pOpt pIdentifier >> pOne ")" id >> pManySpaces
-  return (STypeMapping keyTyp valTpy)
+  return
+    Mapping
+      { mKeyType = keyTyp,
+        mValueType = valTpy
+      }
 
 -- todo: support parse type definition
--- 'type UFixed256x18 is uint256;'
-pTypeDefinition :: Parser String
-pTypeDefinition = pIdentifier
+-- 'type UFixed256x18 is uint256;' or 'struct Price { uint128 price; }'
+pTypeDefinition :: Parser SType
+pTypeDefinition =
+  STypeAlias <$> pTypeAlias <|> STypeStructure <$> pTypeStruct
 
--- todo: support parse enum scope:
+-- 'type UFixed256x18 is uint256;'
+pTypeAlias :: Parser SAlias
+pTypeAlias = do
+  _ <-
+    pManySpaces
+      >> pOne "type" id
+      >> pManySpaces
+  ident <- pIdentifier
+  _ <-
+    pManySpaces
+      >> pOne "is" id
+  tp <- pType
+  return $
+    SAlias
+      { salias = ident,
+        saliasOriginType = tp
+      }
+
+pTypeStruct :: Parser Structure
+pTypeStruct = do
+  _ <-
+    pManySpaces
+      >> pOne "struct" id
+      >> pManySpaces
+  ident <- pIdentifier
+  _ <-
+    pManySpaces
+      >> pOne "{" id
+      >> pManySpaces
+  pairs <- pMany $ do
+    tp <-
+      pManySpaces
+        >> pType
+    name <- pIdentifier
+    _ <-
+      pManySpaces
+        >> pOne ";" id
+    return (tp, name)
+
+  _ <-
+    pManySpaces
+      >> pOne "}" id
+  return $
+    Structure
+      { structName = ident,
+        structFields = pairs
+      }
+
+data STypeEnum = STypeEnum
+  { ename :: String,
+    eelems :: [String]
+  }
+  deriving (Show, Eq)
+
 -- 'enum ActionChoices { GoLeft, GoRight, GoStraight, SitStill }'
-pEnum :: Parser String
-pEnum = pIdentifier
+pTypeEnum :: Parser STypeEnum
+pTypeEnum = do
+  _ <-
+    pManySpaces
+      >> pOne "enum" id
+      >> pManySpaces
+  enum_name <- pIdentifier
+  _ <-
+    pManySpaces
+      >> pOne "{" id
+      >> pManySpaces
+  enum1 <- pIdentifier
+  enums <-
+    pOpt $
+      pMany $
+        pManySpaces
+          >> pOne "," id
+          >> pManySpaces
+          >> pIdentifier
+
+  _ <-
+    pManySpaces
+      >> pOne "}" id
+  return $
+    STypeEnum
+      { ename = enum_name,
+        eelems = enum1 : fromMaybe [] enums
+      }

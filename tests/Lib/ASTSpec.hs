@@ -13,14 +13,22 @@ import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
 spec = do
-  parseTypeWithBitLengthSpec
-  parseFunctionSpec
+  parseFunctionAllSpec
+  parsePragmaSpec
+  parseContractAllSpec
+  parseTypeAllSpec
+  parseCommentsAndPragamaAllSpec
+
+parseCommentsAndPragamaAllSpec :: Spec
+parseCommentsAndPragamaAllSpec = do
   parseCommentSpec
   parseSPDXCommentSpec
   parsePragmaSpec
-  parseContractVariableSpec
+
+parseContractAllSpec :: Spec
+parseContractAllSpec = do
   parseContractSpec
-  parseTypeSpec
+  parseContractVariableSpec
 
 parseContractSpec :: Spec
 parseContractSpec = do
@@ -111,11 +119,11 @@ isCtSpec = do
     it "should return nothing because it's a varaible" $ do
       getCtFunction (CtVariable StateVariable {}) `shouldBe` Nothing
 
-parseFunctionSpec :: Spec
-parseFunctionSpec = do
+parseFunctionAllSpec :: Spec
+parseFunctionAllSpec = do
   parseFunctionQuotedArgs
   parseFunctionModifiers
-  parseReturnsClosureSpec
+  parseFunctionReturnsClauseSpec
   parseFunctionArgsSpec
   parseFunctionSignatureSpec
 
@@ -245,11 +253,11 @@ parseFunctionModifiers = do
       it "should leave correct state" $ do
         s `shouldBe` expectedState
 
-parseReturnsClosureSpec :: Spec
-parseReturnsClosureSpec = do
+parseFunctionReturnsClauseSpec :: Spec
+parseFunctionReturnsClauseSpec = do
   describe "parse function modifiers with curly bracket and returns" $ do
     let str = "returns (uint256){"
-    let (result, s) = runParser pReturnsClosure str
+    let (result, s) = runParser pReturnsClause str
     it "could parse the args" $ do
       result `shouldBe` Right (STypeUint 256)
     it "should leave correct state" $ do
@@ -327,8 +335,13 @@ parsePragmaSpec = do
       it "leaves the correct state" $ do
         s `shouldBe` expectedState
 
-parseTypeSpec :: Spec
-parseTypeSpec = do
+parseTypeAllSpec :: Spec
+parseTypeAllSpec = do
+  parseTypeEnumSpec
+  parseTypeAliasSpec
+  parseTypeStructureSpec
+  parseTypeDifinitionSpec
+  parseTypeWithBitLengthSpec
   let testCases =
         [ ( "uint",
             Right $ STypeUint 256,
@@ -403,11 +416,26 @@ parseTypeSpec = do
             ""
           ),
           ( "mapping(address => uint256) private _balances;",
-            Right $ STypeMapping STypeAddress $ STypeUint 256,
+            Right $
+              STypeMapping $
+                Mapping
+                  { mKeyType = STypeAddress,
+                    mValueType = STypeUint 256
+                  },
             "private _balances;"
           ),
           ( "mapping(address => mapping(address => uint256)) private _allowances;",
-            Right $ STypeMapping STypeAddress (STypeMapping STypeAddress $ STypeUint 256),
+            Right $
+              STypeMapping $
+                Mapping
+                  { mKeyType = STypeAddress,
+                    mValueType =
+                      STypeMapping $
+                        Mapping
+                          { mKeyType = STypeAddress,
+                            mValueType = STypeUint 256
+                          }
+                  },
             "private _allowances;"
           )
         ]
@@ -442,5 +470,170 @@ parseTypeWithBitLengthSpec = do
       let (result, s') = runParser pTypeWithBitLength input
       it "could parse the result successfully" $ do
         result `shouldBe` Right expected
+      it "leave the correct state" $ do
+        s' `shouldBe` left
+
+parseTypeEnumSpec :: Spec
+parseTypeEnumSpec = do
+  let testCases =
+        [ ( "enum _Ab { A1}",
+            Right $
+              STypeEnum
+                { ename = "_Ab",
+                  eelems = ["A1"]
+                },
+            ""
+          ),
+          ( "enum TEST { A1, a2, A3_, A_4 }",
+            Right $
+              STypeEnum
+                { ename = "TEST",
+                  eelems = ["A1", "a2", "A3_", "A_4"]
+                },
+            ""
+          ),
+          ( "enum TEST { } test state",
+            Left "Failed to parse identifier",
+            "} test state"
+          )
+        ]
+  forM_ testCases $ \(input, expected, left) ->
+    describe ("parse the input correctly: " ++ input) $ do
+      let (result, s') = runParser pTypeEnum input
+      it "could parse the result successfully" $ do
+        result `shouldBe` expected
+      it "leave the correct state" $ do
+        s' `shouldBe` left
+
+parseTypeAliasSpec :: Spec
+parseTypeAliasSpec = do
+  let testCases =
+        [ ( "type Alias1 is uint256",
+            Right $
+              SAlias
+                { salias = "Alias1",
+                  saliasOriginType = STypeUint 256
+                },
+            ""
+          ),
+          ( "type _Ab is address",
+            Right $
+              SAlias
+                { salias = "_Ab",
+                  saliasOriginType = STypeAddress
+                },
+            ""
+          ),
+          ( "type is uint256",
+            Left "",
+            "uint256"
+          )
+        ]
+  forM_ testCases $ \(input, expected, left) ->
+    describe ("parse the input correctly: " ++ input) $ do
+      let (result, s') = runParser pTypeAlias input
+      it "could parse the result successfully" $ do
+        result `shouldBe` expected
+      it "leave the correct state" $ do
+        s' `shouldBe` left
+
+parseTypeStructureSpec :: Spec
+parseTypeStructureSpec = do
+  let whitespace = " "
+      testCases =
+        [ ( "struct empty {} ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = []
+                },
+            whitespace
+          ),
+          ( "struct empty { uint128 price; } ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = [(STypeUint 128, "price")]
+                },
+            whitespace
+          ),
+          ( "struct empty { \n uint128 price; } ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = [(STypeUint 128, "price")]
+                },
+            whitespace
+          ),
+          -- todo: fix me as this should be error
+          ( "struct empty { \n uint128 \n price; } ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = [(STypeUint 128, "price")]
+                },
+            whitespace
+          ),
+          ( "struct empty { \n uint128 price; address addr;} ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = [(STypeUint 128, "price"), (STypeAddress, "addr")]
+                },
+            whitespace
+          ),
+          ( "struct empty { \n uint128 price; \n address addr; \n } ",
+            Right $
+              Structure
+                { structName = "empty",
+                  structFields = [(STypeUint 128, "price"), (STypeAddress, "addr")]
+                },
+            whitespace
+          ),
+          ( "struct empty { \n uint128 price; address;}",
+            Left "",
+            ";}"
+          ),
+          ( "struct {} test state",
+            Left "Failed to parse identifier",
+            "{} test state"
+          )
+        ]
+  forM_ testCases $ \(input, expected, left) ->
+    describe ("parse the input correctly: " ++ input) $ do
+      let (result, s') = runParser pTypeStruct input
+      it "could parse the result successfully" $ do
+        result `shouldBe` expected
+      it "leave the correct state" $ do
+        s' `shouldBe` left
+
+parseTypeDifinitionSpec :: Spec
+parseTypeDifinitionSpec = do
+  let whitespace = " "
+      testCases =
+        [ ( "struct empty {} ",
+            Right $
+              STypeStructure $
+                Structure
+                  { structName = "empty",
+                    structFields = []
+                  },
+            whitespace
+          ),
+          ( "type Alias1 is uint256",
+            Right $
+              STypeAlias $
+                SAlias
+                  { salias = "Alias1",
+                    saliasOriginType = STypeUint 256
+                  },
+            ""
+          )
+        ]
+  forM_ testCases $ \(input, expected, left) ->
+    describe ("parse the input correctly: " ++ input) $ do
+      let (result, s') = runParser pTypeDefinition input
+      it "could parse the result successfully" $ do
+        result `shouldBe` expected
       it "leave the correct state" $ do
         s' `shouldBe` left
