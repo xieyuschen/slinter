@@ -24,7 +24,11 @@ common common-depends
 library internallib
     import: common-depends
     exposed-modules:
-       Lib.AST,
+       Lib.AST.Function,
+       Lib.AST.Contract,
+       Lib.AST.Comment,
+       Lib.AST.Model,
+       Lib.AST.Type,
        Lib.Parser
     hs-source-dirs: src
 
@@ -49,6 +53,9 @@ test-suite tests
     hs-source-dirs: tests
     default-language: Haskell2010
     other-modules:
-        Lib.ASTSpec,
-        Lib.ParserSpec
+       Lib.AST.FunctionSpec,
+       Lib.AST.ContractSpec,
+       Lib.AST.CommentSpec,
+       Lib.AST.TypeSpec,
+       Lib.ParserSpec
     build-tool-depends: hspec-discover:hspec-discover == 2.*
