@@ -174,7 +174,8 @@ data Literal
 
 data SExpression
   = Expr Exprv
-  | ExprVar String -- the type is a variable
+  | ParenthesizedExpr SExpression
+  | ExprVar String -- String refers to the variable name
   | ExprL Literal
   deriving (Show, Eq)
 
@@ -184,6 +185,11 @@ data Operator
   | LogicalNegation
   | LogicalEqual
   | LogicalInequal
+  | ArithmeticAddition
+  | ArithmeticSubtraction
+  | ArithmeticMultiplication
+  | ArithmeticDivision
+  | ArithmeticModulus
   deriving (Show, Eq)
 
 -- expression stands for a bool expression by now, for example 'a&&b' and 'a||b'
