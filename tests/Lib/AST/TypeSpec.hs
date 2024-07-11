@@ -15,6 +15,109 @@ spec = do
   parseTypeStructureSpec
   parseTypeDifinitionSpec
   parseTypeWithBitLengthSpec
+  parseSimpleTypeSpec
+  parseArrayMapSpec
+
+parseArrayMapSpec :: Spec
+parseArrayMapSpec = do
+  let testCases =
+        [ ( "mapping(address => uint256) private _balances;",
+            Right $
+              STypeMapping $
+                Mapping
+                  { mKeyType = STypeAddress,
+                    mValueType = STypeUint 256
+                  },
+            "private _balances;"
+          ),
+          ( "mapping(address => mapping(address => uint256)) private _allowances;",
+            Right $
+              STypeMapping $
+                Mapping
+                  { mKeyType = STypeAddress,
+                    mValueType =
+                      STypeMapping $
+                        Mapping
+                          { mKeyType = STypeAddress,
+                            mValueType = STypeUint 256
+                          }
+                  },
+            "private _allowances;"
+          ),
+          ( "int[]",
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType = STypeInt 256,
+                      aSize = Nothing
+                    }
+              ),
+            ""
+          ),
+          ( "int[3]",
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType = STypeInt 256,
+                      aSize = Just 3
+                    }
+              ),
+            ""
+          ),
+          ( "int[x]", -- todo: technically, we should report an error here, instead of treat it as Int and left '[x]'
+            Right (STypeInt 256),
+            "[x]"
+          ),
+          ( "int[1][]",
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType =
+                        STypeArray
+                          ArrayN
+                            { aElemType = STypeInt 256,
+                              aSize = Just 1
+                            },
+                      aSize = Nothing
+                    }
+              ),
+            ""
+          ),
+          ( "int[][2]",
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType =
+                        STypeArray
+                          ArrayN
+                            { aElemType = STypeInt 256,
+                              aSize = Nothing
+                            },
+                      aSize = Just 2
+                    }
+              ),
+            ""
+          ),
+          ( "int[][]",
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType =
+                        STypeArray
+                          ArrayN
+                            { aElemType = STypeInt 256,
+                              aSize = Nothing
+                            },
+                      aSize = Nothing
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "map and array types" pType
+
+parseSimpleTypeSpec :: Spec
+parseSimpleTypeSpec = do
   let testCases =
         [ ( "uint",
             Right $ STypeUint 256,
@@ -87,32 +190,9 @@ spec = do
           ( "bytes9",
             Left "",
             ""
-          ),
-          ( "mapping(address => uint256) private _balances;",
-            Right $
-              STypeMapping $
-                Mapping
-                  { mKeyType = STypeAddress,
-                    mValueType = STypeUint 256
-                  },
-            "private _balances;"
-          ),
-          ( "mapping(address => mapping(address => uint256)) private _allowances;",
-            Right $
-              STypeMapping $
-                Mapping
-                  { mKeyType = STypeAddress,
-                    mValueType =
-                      STypeMapping $
-                        Mapping
-                          { mKeyType = STypeAddress,
-                            mValueType = STypeUint 256
-                          }
-                  },
-            "private _allowances;"
           )
         ]
-  forM_ testCases $ verifyParser "type" pType
+  forM_ testCases $ verifyParser "simple types" pType
 
 parseTypeWithBitLengthSpec :: Spec
 parseTypeWithBitLengthSpec = do
@@ -180,7 +260,7 @@ parseTypeAliasSpec = do
             ""
           ),
           ( "type is uint256",
-            Left "",
+            Left "fail to find desired charactor: 'is';",
             "uint256"
           )
         ]
@@ -240,7 +320,7 @@ parseTypeStructureSpec = do
             whitespace
           ),
           ( "struct empty { \n uint128 price; address;}",
-            Left "",
+            Left "fail to find desired charactor: '}';",
             ";}"
           ),
           ( "struct {} test state",

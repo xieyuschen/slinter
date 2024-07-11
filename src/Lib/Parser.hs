@@ -38,6 +38,15 @@ data SemVer = SemVer
 
 type ErrMsg = String
 
+-- pTry runs the parser, if it fails it restores the state consumed by the parser
+pTry :: Parser a -> Parser a
+pTry p = ExceptT $ state $ \s -> do
+  let (result, s') = runParser p s
+  case result of
+    -- we cut the error message as well, because sometimes we use <|> to append computations
+    Left msg -> first Left ("", s)
+    Right r -> first Right (r, s')
+
 -- pass the type you want to pass, so use a instead of [a]
 type Parser a = ExceptT ErrMsg (State String) a
 
@@ -103,7 +112,7 @@ pMany1Stop p v = ExceptT $ state $ \s -> do
 pOne :: String -> (String -> a) -> Parser a
 pOne desired f = ExceptT $ state $ \s -> do
   case stripPrefix desired s of
-    Nothing -> first Left ("", s)
+    Nothing -> first Left ("fail to find desired charactor: '" ++ desired ++ "';", s)
     Just remainder -> first Right (f desired, remainder)
 
 safeTail :: [a] -> Maybe [a]
@@ -121,7 +130,7 @@ pSpace = ExceptT $ state $ \s -> do
   if s /= "" && (head s == ' ' || head s == '\n')
     then first Right ((), tail s)
     else
-      first Left ("", s)
+      first Left ("fail to parse a space", s)
 
 -- todo: support unicode and hex, such as:
 -- unicode"Hello 😃";

@@ -15,6 +15,162 @@ spec = do
   parseComparisionExpressionSpec
   parseShiftExpressionSpec
   parseAssignExpressionSpec
+  parseUnaryExpressionSpec
+
+parseUnaryExpressionSpec :: Spec
+parseUnaryExpressionSpec = do
+  let testCases =
+        [ ( "-1",
+            Right $
+              SExprU $
+                ExprUnary
+                  { uOperand = SExprL $ LNum 1,
+                    uOperator = Minus
+                  },
+            ""
+          ),
+          ( "-x",
+            Right $
+              SExprU $
+                ExprUnary
+                  { uOperand = SExprVar "x",
+                    uOperator = Minus
+                  },
+            ""
+          ),
+          ( "-(1)",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperand = SExprParentheses (SExprL (LNum 1)),
+                      uOperator = Minus
+                    }
+              ),
+            ""
+          ),
+          ( "-(-1)",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperator = Minus,
+                      uOperand =
+                        SExprParentheses
+                          ( SExprU
+                              ExprUnary
+                                { uOperand = SExprL (LNum 1),
+                                  uOperator = Minus
+                                }
+                          )
+                    }
+              ),
+            ""
+          ),
+          ( "-(-(x))",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperator = Minus,
+                      uOperand =
+                        SExprParentheses
+                          ( SExprU
+                              ExprUnary
+                                { uOperand = SExprParentheses (SExprVar "x"),
+                                  uOperator = Minus
+                                }
+                          )
+                    }
+              ),
+            ""
+          ),
+          ( "-(-(x-1))",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperator = Minus,
+                      uOperand =
+                        SExprParentheses
+                          ( SExprU
+                              ExprUnary
+                                { uOperator = Minus,
+                                  uOperand =
+                                    SExprParentheses
+                                      ( SExprB
+                                          ExprBinary
+                                            { leftOperand = SExprVar "x",
+                                              rightOperand = SExprL (LNum 1),
+                                              bOperator = Minus
+                                            }
+                                      )
+                                }
+                          )
+                    }
+              ),
+            ""
+          ),
+          ( "-(-(x-1) && 234)",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperator = Minus,
+                      uOperand =
+                        SExprParentheses
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand =
+                                    SExprU
+                                      ExprUnary
+                                        { uOperator = Minus,
+                                          uOperand =
+                                            SExprParentheses
+                                              ( SExprB
+                                                  ExprBinary
+                                                    { leftOperand = SExprVar "x",
+                                                      rightOperand = SExprL (LNum 1),
+                                                      bOperator = Minus
+                                                    }
+                                              )
+                                        },
+                                  rightOperand = SExprL (LNum 234),
+                                  bOperator = LogicalAnd
+                                }
+                          )
+                    }
+              ),
+            ""
+          ),
+          ( "-x + 123",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand =
+                      SExprU $
+                        ExprUnary
+                          { uOperand = SExprVar "x",
+                            uOperator = Minus
+                          },
+                    rightOperand = SExprL $ LNum 123,
+                    bOperator = ArithmeticAddition
+                  },
+            ""
+          ),
+          ( "123 + -x",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 123,
+                    rightOperand =
+                      -- this is intended, and in the syntax stage we can easily recognize such csae
+                      SExprU $
+                        ExprUnary
+                          { uOperand = SExprVar "x",
+                            uOperator = Minus
+                          },
+                    bOperator = ArithmeticAddition
+                  },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "unary expression" pExpression
 
 parseAssignExpressionSpec :: Spec
 parseAssignExpressionSpec = do
@@ -289,7 +445,7 @@ parseArithemeticExpressionSpec = do
                               bOperator = ArithmeticAddition
                             },
                       rightOperand = SExprL (LNum 3),
-                      bOperator = ArithmeticSubtraction
+                      bOperator = Minus
                     }
               ),
             ""
@@ -323,7 +479,7 @@ parseArithemeticExpressionSpec = do
                               bOperator = ArithmeticMultiplication
                             },
                       rightOperand = SExprL (LNum 3),
-                      bOperator = ArithmeticSubtraction
+                      bOperator = Minus
                     }
               ),
             ""
@@ -358,7 +514,7 @@ parseArithemeticExpressionSpec = do
                               rightOperand = SExprL (LNum 6),
                               bOperator = ArithmeticDivision
                             },
-                      bOperator = ArithmeticSubtraction
+                      bOperator = Minus
                     }
               ),
             ""
@@ -532,7 +688,7 @@ parseOperatorSpec = do
             ""
           ),
           ( "-",
-            Right ArithmeticSubtraction,
+            Right Minus,
             ""
           ),
           ( "*",

@@ -10,13 +10,18 @@ import Lib.Parser
 
 pExpression :: Parser SExpr
 pExpression = do
-  -- todo: make it a parser function
   left <- pTerm
   rest <- pMany (pManySpaces >> ((,) <$> pAddOp <*> pTerm))
   return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
 pFactor :: Parser SExpr
-pFactor = pParenthesizedExpr <|> (SExprL <$> pLiteral) <|> (SExprVar <$> pIdentifier)
+pFactor =
+  pParenthesizedExpr
+    -- we decide to keep supporting the unary expression during parse stage,
+    -- such as '123 + -x', where we will report error during syntax check
+    <|> SExprU <$> pUnaryExpr
+    <|> (SExprL <$> pLiteral)
+    <|> (SExprVar <$> pIdentifier)
 
 pTerm :: Parser SExpr
 pTerm = do
@@ -46,6 +51,26 @@ isOperatorEnd s = (length s == 1) || isSpace (last $ take 2 s)
 isSecond :: String -> String -> Bool
 isSecond s want = tail (take 2 s) == want
 
+isUnaryOp :: Operator -> Bool
+isUnaryOp Minus = True
+isUnaryOp _ = False
+
+pUnaryExpr :: Parser ExprUnary
+pUnaryExpr = do
+  op <- pManySpaces >> pOperator
+  guard $ isUnaryOp op
+  -- don't use pExpression here because we don't want to parse the whole expression after unary
+  -- for example, -(x-1) && 234, we should parse the -(x-1) as an expression only
+  operand <-
+    pParenthesizedExpr
+      <|> SExprL <$> pLiteral
+      <|> SExprVar <$> pIdentifier
+  return
+    ExprUnary
+      { uOperand = operand,
+        uOperator = op
+      }
+
 pOperator :: Parser Operator
 pOperator = do
   _ <- pManySpaces
@@ -55,7 +80,7 @@ pOperator = do
   case take 1 s of
     -- todo: the '+' in '+-' will be consumed, check whether we need to support it further
     "+" -> return ArithmeticAddition
-    "-" -> return ArithmeticSubtraction
+    "-" -> return Minus
     "*" -> case s of
       -- we need this branch to ensure the length of s for the following matching,
       -- so we cannot move this logic into otherwise

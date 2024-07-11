@@ -6,57 +6,63 @@ import Control.Monad.Except
 import Control.Monad.State (MonadState (get, put, state))
 import Data.Char (isAlpha, isNumber)
 import Data.Maybe (fromMaybe, isJust)
+import Debug.Trace
 import GHC.Base
 import Lib.AST.Model
-  ( BitLengthDesc (..),
+  ( ArrayN (ArrayN, aElemType),
+    BitLengthDesc (..),
     Mapping (..),
     SAlias (..),
-    SType
-      ( STypeAddress,
-        STypeAlias,
-        STypeBool,
-        STypeBytes,
-        STypeCustom,
-        STypeFixed,
-        STypeInt,
-        STypeMapping,
-        STypePayableAddress,
-        STypeString,
-        STypeStructure,
-        STypeUFixed,
-        STypeUint
-      ),
+    SType (..),
     STypeEnum (..),
     Structure (..),
+    aSize,
+    leftSquareBracket,
+    rightSquareBracket,
   )
 import Lib.Parser
   ( Parser,
     isUnderscore,
     pIdentifier,
     pMany,
+    pMany1,
     pManySpaces,
+    pNumber,
     pOne,
     pOpt,
+    pTry,
     runParser,
   )
 import Text.Read (readMaybe)
 import Prelude hiding (foldr)
 
--- int / uint: Signed and unsigned integers of various sizes.
--- Keywords uint8 to uint256 in steps of 8 (unsigned of 8 up to 256 bits) and int8 to int256.
--- uint and int are aliases for uint256 and int256, respectively.
 pType :: Parser SType
 pType = do
-  _ <- pManySpaces
-  s <- get
-  let (result, s') = runParser pTypeMapping s
-  case result of
-    Right m -> do
-      put s'
-      return $ STypeMapping m
-    _ -> do
-      put s -- retore the stack
-      pTypeSimple
+  pManySpaces
+    >> ( STypeMapping <$> pTry pTypeMapping
+           <|> pTry pTypeArray
+           <|> pTypeSimple
+       )
+
+pTypeArray :: Parser SType
+pTypeArray = do
+  elemTp <- pManySpaces >> pTypeSimple
+  brackets <- pMany1 $ do
+    _ <- pOne leftSquareBracket id
+    sizeMaybe <- pOpt pNumber
+    _ <- pOne rightSquareBracket id
+    return sizeMaybe
+  return $
+    foldl
+      ( \acc v ->
+          STypeArray
+            ArrayN
+              { aElemType = acc,
+                aSize = v
+              }
+      )
+      elemTp
+      brackets
 
 -- todo: support me
 -- 'mapping(KeyType KeyName? => ValueType ValueName?)'

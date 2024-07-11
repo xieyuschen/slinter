@@ -110,12 +110,17 @@ data SType -- solidity type
   | STypePayableAddress
   | STypeBytes Int
   | STypeMapping Mapping
-  | STypeArrayN SType Int
-  | STypeArray SType
+  | STypeArray ArrayN
   | STypeCustom String
   | STypeAlias SAlias
   | STypeStructure Structure
   | CustomTODO
+  deriving (Show, Eq)
+
+data ArrayN = ArrayN
+  { aElemType :: SType,
+    aSize :: Maybe Int -- nothing means the dynamic size
+  }
   deriving (Show, Eq)
 
 data Function = Function
@@ -174,6 +179,13 @@ data ExprBinary = ExprBinary
   }
   deriving (Show, Eq)
 
+data ExprUnary = ExprUnary
+  { -- todo: consider to make Operator a sum-type then split the unary operator out
+    uOperator :: Operator,
+    uOperand :: SExpr
+  }
+  deriving (Show, Eq)
+
 data Literal
   = LNum Int
   | LBool Bool
@@ -183,6 +195,7 @@ data Literal
 data SExpr
   = SExprB ExprBinary
   | SExprParentheses SExpr
+  | SExprU ExprUnary
   | SExprVar String -- String refers to the variable name
   | SExprL Literal
   deriving (Show, Eq)
@@ -194,7 +207,7 @@ data Operator
   | LogicalEqual -- ==
   | LogicalInequal -- !=
   | ArithmeticAddition -- +
-  | ArithmeticSubtraction -- -
+  | Minus -- -, could be binary or unary operator
   | ArithmeticMultiplication
   | ArithmeticDivision -- /
   | ArithmeticModulus -- %
