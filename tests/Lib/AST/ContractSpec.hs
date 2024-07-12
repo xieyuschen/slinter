@@ -7,6 +7,7 @@ import Lib.AST.Contract
 import Lib.AST.Function
 import Lib.AST.Model
 import Lib.Parser
+import Lib.TestCommon
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
@@ -48,9 +49,9 @@ parseContractSpec = do
       result
         `shouldBe` Right
           Contract
-            { cname = "Counter",
-              cfunctions = fns,
-              cvariables = vars
+            { ctName = "Counter",
+              ctFunctions = fns,
+              ctVariables = vars
             }
     it "get the correct state" $ do
       s `shouldBe` ""
@@ -79,13 +80,7 @@ parseContractVariableSpec = do
             ""
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse variable: " ++ input) $ do
-      let (result, s) = runParser pStateVariable input
-      it "gets the correct variable" $ do
-        result `shouldBe` expectedResult
-      it "leaves the correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "contract state variable" pStateVariable
 
 isCtSpec :: Spec
 isCtSpec = do

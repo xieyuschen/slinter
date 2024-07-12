@@ -3,204 +3,442 @@ module Lib.AST.ExprSpec (spec) where
 import Control.Monad (forM_)
 import Lib.AST.Expr (pExpression, pOperator)
 import Lib.AST.Model
-import Lib.Parser
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Lib.TestCommon
+import Test.Hspec
 
 spec :: Spec
 spec = do
   parseLogcicalExpressionSpec
   parseArithemeticExpressionSpec
   parseOperatorSpec
+  parseBitExpressionSpec
+  parseComparisionExpressionSpec
+  parseShiftExpressionSpec
+  parseAssignExpressionSpec
 
-verifyExpression :: (String, Either ErrMsg SExpression, String) -> Spec
-verifyExpression (input, expectedResult, expectedState) = do
-  describe ("parse expression correctly: " ++ input) $ do
-    let (result, s) = runParser pExpression input
-    it "could parse the expression" $ do
-      result `shouldBe` expectedResult
-    it "should leave correct state" $ do
-      s `shouldBe` expectedState
+parseAssignExpressionSpec :: Spec
+parseAssignExpressionSpec = do
+  -- some test caes has an invalid syntax but still could be parsed in AST
+  let testCases =
+        [ ( "1 = 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = Assign
+                  },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "assign expression" pExpression
+
+parseShiftExpressionSpec :: Spec
+parseShiftExpressionSpec = do
+  -- some test caes has an invalid syntax but still could be parsed in AST
+  let testCases =
+        [ ( "1 << 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ShiftLeft
+                  },
+            ""
+          ),
+          ( "1 >> 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ShiftRight
+                  },
+            ""
+          ),
+          ( "1>>2<<3",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = ShiftRight
+                            },
+                      rightOperand = SExprL (LNum 3),
+                      bOperator = ShiftLeft
+                    }
+              ),
+            ""
+          ),
+          ( "1>>(2<<3)",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprL (LNum 1),
+                      rightOperand =
+                        SExprParentheses $
+                          SExprB
+                            ExprBinary
+                              { leftOperand = SExprL (LNum 2),
+                                rightOperand = SExprL (LNum 3),
+                                bOperator = ShiftLeft
+                              },
+                      bOperator = ShiftRight
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "shift expression" pExpression
+
+parseComparisionExpressionSpec :: Spec
+parseComparisionExpressionSpec = do
+  -- some test caes has an invalid syntax but still could be parsed in AST
+  let testCases =
+        [ ( "1 <= 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ComparisionLessEqual
+                  },
+            ""
+          ),
+          ( "1<2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ComparisionLess
+                  },
+            ""
+          ),
+          ( "1 > 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ComparisionMore
+                  },
+            ""
+          ),
+          ( "1>=2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ComparisionMoreEqual
+                  },
+            ""
+          ),
+          ( "1>=2<=3",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = ComparisionMoreEqual
+                            },
+                      rightOperand = SExprL (LNum 3),
+                      bOperator = ComparisionLessEqual
+                    }
+              ),
+            ""
+          ),
+          ( "1<(2>3)",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprL (LNum 1),
+                      rightOperand =
+                        SExprParentheses $
+                          SExprB
+                            ExprBinary
+                              { leftOperand = SExprL (LNum 2),
+                                rightOperand = SExprL (LNum 3),
+                                bOperator = ComparisionMore
+                              },
+                      bOperator = ComparisionLess
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "comparision expression" pExpression
+
+parseBitExpressionSpec :: Spec
+parseBitExpressionSpec = do
+  -- some test caes has an invalid syntax but still could be parsed in AST
+  let testCases =
+        [ ( "1 & 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = BitAnd
+                  },
+            ""
+          ),
+          ( "1|2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = BitOr
+                  },
+            ""
+          ),
+          ( "1^ 2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = BitExor
+                  },
+            ""
+          ),
+          ( "1~2",
+            Right $
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = BitNeg
+                  },
+            ""
+          ),
+          ( "1&2~3",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = BitAnd
+                            },
+                      rightOperand = SExprL (LNum 3),
+                      bOperator = BitNeg
+                    }
+              ),
+            ""
+          ),
+          ( "1~(2^3)",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprL (LNum 1),
+                      rightOperand =
+                        SExprParentheses $
+                          SExprB
+                            ExprBinary
+                              { leftOperand = SExprL (LNum 2),
+                                rightOperand = SExprL (LNum 3),
+                                bOperator = BitExor
+                              },
+                      bOperator = BitNeg
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "bit expression" pExpression
 
 parseArithemeticExpressionSpec :: Spec
 parseArithemeticExpressionSpec = do
   -- some test caes has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "1",
-            Right $ ExprL $ LNum 1,
+            Right $ SExprL $ LNum 1,
             ""
           ),
           ( "1+2",
             Right $
-              Expr $
-                Exprv
-                  { leftOperand = ExprL $ LNum 1,
-                    rightOperand = ExprL $ LNum 2,
-                    operator = ArithmeticAddition
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 1,
+                    rightOperand = SExprL $ LNum 2,
+                    bOperator = ArithmeticAddition
                   },
             ""
           ),
           ( "1+2-3",
             Right
-              ( Expr
-                  Exprv
+              ( SExprB
+                  ExprBinary
                     { leftOperand =
-                        Expr
-                          Exprv
-                            { leftOperand = ExprL (LNum 1),
-                              rightOperand = ExprL (LNum 2),
-                              operator = ArithmeticAddition
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = ArithmeticAddition
                             },
-                      rightOperand = ExprL (LNum 3),
-                      operator = ArithmeticSubtraction
+                      rightOperand = SExprL (LNum 3),
+                      bOperator = ArithmeticSubtraction
                     }
               ),
             ""
           ),
           ( "1+2*3",
             Right
-              ( Expr
-                  Exprv
-                    { leftOperand = ExprL (LNum 1),
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprL (LNum 1),
                       rightOperand =
-                        Expr
-                          Exprv
-                            { leftOperand = ExprL (LNum 2),
-                              rightOperand = ExprL (LNum 3),
-                              operator = ArithmeticMultiplication
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 2),
+                              rightOperand = SExprL (LNum 3),
+                              bOperator = ArithmeticMultiplication
                             },
-                      operator = ArithmeticAddition
+                      bOperator = ArithmeticAddition
                     }
               ),
             ""
           ),
           ( "1*2-3",
             Right
-              ( Expr
-                  Exprv
+              ( SExprB
+                  ExprBinary
                     { leftOperand =
-                        Expr
-                          Exprv
-                            { leftOperand = ExprL (LNum 1),
-                              rightOperand = ExprL (LNum 2),
-                              operator = ArithmeticMultiplication
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = ArithmeticMultiplication
                             },
-                      rightOperand = ExprL (LNum 3),
-                      operator = ArithmeticSubtraction
+                      rightOperand = SExprL (LNum 3),
+                      bOperator = ArithmeticSubtraction
                     }
               ),
             ""
           ),
           ( "1*2*3-4/5/6",
             Right
-              ( Expr
-                  Exprv
+              ( SExprB
+                  ExprBinary
                     { leftOperand =
-                        Expr
-                          Exprv
+                        SExprB
+                          ExprBinary
                             { leftOperand =
-                                Expr
-                                  Exprv
-                                    { leftOperand = ExprL (LNum 1),
-                                      rightOperand = ExprL (LNum 2),
-                                      operator = ArithmeticMultiplication
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LNum 1),
+                                      rightOperand = SExprL (LNum 2),
+                                      bOperator = ArithmeticMultiplication
                                     },
-                              rightOperand = ExprL (LNum 3),
-                              operator = ArithmeticMultiplication
+                              rightOperand = SExprL (LNum 3),
+                              bOperator = ArithmeticMultiplication
                             },
                       rightOperand =
-                        Expr
-                          Exprv
+                        SExprB
+                          ExprBinary
                             { leftOperand =
-                                Expr
-                                  Exprv
-                                    { leftOperand = ExprL (LNum 4),
-                                      rightOperand = ExprL (LNum 5),
-                                      operator = ArithmeticDivision
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LNum 4),
+                                      rightOperand = SExprL (LNum 5),
+                                      bOperator = ArithmeticDivision
                                     },
-                              rightOperand = ExprL (LNum 6),
-                              operator = ArithmeticDivision
+                              rightOperand = SExprL (LNum 6),
+                              bOperator = ArithmeticDivision
                             },
-                      operator = ArithmeticSubtraction
+                      bOperator = ArithmeticSubtraction
                     }
               ),
             ""
           )
         ]
-  forM_ testCases verifyExpression
+  forM_ testCases $ verifyParser "arithmetic expression" pExpression
 
 parseLogcicalExpressionSpec :: Spec
 parseLogcicalExpressionSpec = do
   -- some test caes has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "true",
-            Right $ ExprL $ LBool True,
+            Right $ SExprL $ LBool True,
             ""
           ),
           ( "tru",
-            Right $ ExprVar "tru",
+            Right $ SExprVar "tru",
             ""
           ),
           ( "true ! false",
             Right $
-              Expr $
-                Exprv
-                  { leftOperand = ExprL $ LBool True,
-                    rightOperand = ExprL $ LBool False,
-                    operator = LogicalNegation
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LBool True,
+                    rightOperand = SExprL $ LBool False,
+                    bOperator = LogicalNegation
                   },
             ""
           ),
           ( "tru && false",
             Right $
-              Expr $
-                Exprv
-                  { leftOperand = ExprVar "tru",
-                    rightOperand = ExprL $ LBool False,
-                    operator = LogicalAnd
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprVar "tru",
+                    rightOperand = SExprL $ LBool False,
+                    bOperator = LogicalAnd
                   },
             ""
           ),
           ( -- this is an invalid case, but we used it to test the parser
             "123 || false",
             Right $
-              Expr $
-                Exprv
-                  { leftOperand = ExprL $ LNum 123,
-                    rightOperand = ExprL $ LBool False,
-                    operator = LogicalOr
+              SExprB $
+                ExprBinary
+                  { leftOperand = SExprL $ LNum 123,
+                    rightOperand = SExprL $ LBool False,
+                    bOperator = LogicalOr
                   },
             ""
           ),
           ( -- this is an invalid case, but we used it to test the parser
             "123 || false != arg1",
             Right
-              ( Expr
-                  Exprv
+              ( SExprB
+                  ExprBinary
                     { leftOperand =
-                        Expr
-                          Exprv
-                            { leftOperand = ExprL (LNum 123),
-                              rightOperand = ExprL (LBool False),
-                              operator = LogicalOr
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 123),
+                              rightOperand = SExprL (LBool False),
+                              bOperator = LogicalOr
                             },
-                      rightOperand = ExprVar "arg1",
-                      operator = LogicalInequal
+                      rightOperand = SExprVar "arg1",
+                      bOperator = LogicalInequal
                     }
               ),
             ""
           ),
           ( "(true)",
-            Right (ParenthesizedExpr (ExprL (LBool True))),
+            Right (SExprParentheses (SExprL (LBool True))),
             ""
           ),
           ( "(true && false)",
             Right
-              ( ParenthesizedExpr
-                  ( Expr
-                      Exprv
-                        { leftOperand = ExprL (LBool True),
-                          rightOperand = ExprL (LBool False),
-                          operator = LogicalAnd
+              ( SExprParentheses
+                  ( SExprB
+                      ExprBinary
+                        { leftOperand = SExprL (LBool True),
+                          rightOperand = SExprL (LBool False),
+                          bOperator = LogicalAnd
                         }
                   )
               ),
@@ -208,31 +446,31 @@ parseLogcicalExpressionSpec = do
           ),
           ( "(true) || false",
             Right
-              ( Expr
-                  Exprv
-                    { leftOperand = ParenthesizedExpr (ExprL (LBool True)),
-                      rightOperand = ExprL (LBool False),
-                      operator = LogicalOr
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprParentheses (SExprL (LBool True)),
+                      rightOperand = SExprL (LBool False),
+                      bOperator = LogicalOr
                     }
               ),
             ""
           ),
           ( "(true && (false || true))",
             Right
-              ( ParenthesizedExpr
-                  ( Expr
-                      Exprv
-                        { leftOperand = ExprL (LBool True),
+              ( SExprParentheses
+                  ( SExprB
+                      ExprBinary
+                        { leftOperand = SExprL (LBool True),
                           rightOperand =
-                            ParenthesizedExpr
-                              ( Expr
-                                  Exprv
-                                    { leftOperand = ExprL (LBool False),
-                                      rightOperand = ExprL (LBool True),
-                                      operator = LogicalOr
+                            SExprParentheses
+                              ( SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LBool False),
+                                      rightOperand = SExprL (LBool True),
+                                      bOperator = LogicalOr
                                     }
                               ),
-                          operator = LogicalAnd
+                          bOperator = LogicalAnd
                         }
                   )
               ),
@@ -240,27 +478,27 @@ parseLogcicalExpressionSpec = do
           ),
           ( "((true || false) && true)",
             Right
-              ( ParenthesizedExpr
-                  ( Expr
-                      Exprv
+              ( SExprParentheses
+                  ( SExprB
+                      ExprBinary
                         { leftOperand =
-                            ParenthesizedExpr
-                              ( Expr
-                                  Exprv
-                                    { leftOperand = ExprL (LBool True),
-                                      rightOperand = ExprL (LBool False),
-                                      operator = LogicalOr
+                            SExprParentheses
+                              ( SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LBool True),
+                                      rightOperand = SExprL (LBool False),
+                                      bOperator = LogicalOr
                                     }
                               ),
-                          rightOperand = ExprL (LBool True),
-                          operator = LogicalAnd
+                          rightOperand = SExprL (LBool True),
+                          bOperator = LogicalAnd
                         }
                   )
               ),
             ""
           )
         ]
-  forM_ testCases verifyExpression
+  forM_ testCases $ verifyParser "logical expression" pExpression
 
 parseOperatorSpec :: Spec
 parseOperatorSpec = do
@@ -308,12 +546,65 @@ parseOperatorSpec = do
           ( "%",
             Right ArithmeticModulus,
             ""
+          ),
+          ( "**",
+            Right ArithmeticExp,
+            ""
+          ),
+          ( "<=",
+            Right ComparisionLessEqual,
+            ""
+          ),
+          ( "<",
+            Right ComparisionLess,
+            ""
+          ),
+          ( ">=",
+            Right ComparisionMoreEqual,
+            ""
+          ),
+          ( ">=",
+            Right ComparisionMoreEqual,
+            ""
+          ),
+          ( ">",
+            Right ComparisionMore,
+            ""
+          ),
+          ( ">",
+            Right ComparisionMore,
+            ""
+          ),
+          ( "&",
+            Right BitAnd,
+            ""
+          ),
+          ( "|",
+            Right BitOr,
+            ""
+          ),
+          ( "^",
+            Right BitExor,
+            ""
+          ),
+          ( "~",
+            Right BitNeg,
+            ""
+          ),
+          ( "<<",
+            Right ShiftLeft,
+            ""
+          ),
+          ( ">>",
+            Right ShiftRight,
+            ""
+          ),
+          ( "=",
+            Right Assign,
+            ""
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse function modifiers: " ++ input) $ do
-      let (result, s) = runParser pOperator input
-      it "could parse the modifiers" $ do
-        result `shouldBe` expectedResult
-      it "should leave correct state" $ do
-        s `shouldBe` expectedState
+
+  forM_ testCases $ verifyParser "arithmetic expression" pOperator
+  -- in this turn, we add some suffix after the operator to make sure the parse works well
+  forM_ testCases $ verifyParser "arithmetic expression" pOperator . appendSuffix "1_suffix"

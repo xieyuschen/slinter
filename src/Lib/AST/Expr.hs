@@ -8,28 +8,28 @@ import Data.Char (isSpace)
 import Lib.AST.Model
 import Lib.Parser
 
-pExpression :: Parser SExpression
+pExpression :: Parser SExpr
 pExpression = do
   -- todo: make it a parser function
   left <- pTerm
   rest <- pMany (pManySpaces >> ((,) <$> pAddOp <*> pTerm))
-  return $ foldl (\acc (op, right) -> Expr $ Exprv acc right op) left rest
+  return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
-pFactor :: Parser SExpression
-pFactor = pParenthesizedExpr <|> (ExprL <$> pLiteral) <|> (ExprVar <$> pIdentifier)
+pFactor :: Parser SExpr
+pFactor = pParenthesizedExpr <|> (SExprL <$> pLiteral) <|> (SExprVar <$> pIdentifier)
 
-pTerm :: Parser SExpression
+pTerm :: Parser SExpr
 pTerm = do
   left <- pFactor
   rest <- pMany (pManySpaces >> ((,) <$> pMulOp <*> pFactor))
-  return $ foldl (\acc (op, right) -> Expr $ Exprv acc right op) left rest
+  return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
-pParenthesizedExpr :: Parser SExpression
+pParenthesizedExpr :: Parser SExpr
 pParenthesizedExpr = do
   _ <- pManySpaces >> pOne leftParenthesis id
-  expr <- pExpression
+  exp <- pExpression
   _ <- pManySpaces >> pOne rightParenthesis id
-  return $ ParenthesizedExpr expr
+  return $ SExprParentheses exp
 
 pLiteral :: Parser Literal
 pLiteral =
@@ -37,6 +37,14 @@ pLiteral =
     LNum <$> pNumber
     <|> LBool <$> pBool
     <|> LString <$> pString
+
+isOperatorEnd :: String -> Bool
+isOperatorEnd s = (length s == 1) || isSpace (last $ take 2 s)
+
+-- isFollowed check whether the want string is the second charactor of s
+-- it requires the string at least has 2 charactor otherwise it throws an exception
+isSecond :: String -> String -> Bool
+isSecond s want = tail (take 2 s) == want
 
 pOperator :: Parser Operator
 pOperator = do
@@ -48,30 +56,65 @@ pOperator = do
     -- todo: the '+' in '+-' will be consumed, check whether we need to support it further
     "+" -> return ArithmeticAddition
     "-" -> return ArithmeticSubtraction
-    "*" -> return ArithmeticMultiplication
+    "*" -> case s of
+      -- we need this branch to ensure the length of s for the following matching,
+      -- so we cannot move this logic into otherwise
+      _
+        | isOperatorEnd s -> return ArithmeticMultiplication
+        | isSecond s "*" ->
+            put (drop 2 s)
+              >> return ArithmeticExp
+        | otherwise -> return ArithmeticMultiplication
     "/" -> return ArithmeticDivision
     "%" -> return ArithmeticModulus
-    "!" -> do
-      -- consume more to see whether it's a '!' or '!='
-      if (length s == 1) || isSpace (last $ take 2 s)
-        then do
-          return LogicalNegation
-        else
-          if tail (take 2 s) == "="
-            then do
-              put $ drop 2 s
-              return LogicalInequal
-            else do
-              throwError "unsupported operator"
-    _ -> do
-      put $ drop 2 s
-      case take 2 s of
-        "&&" -> return LogicalAnd
-        "||" -> return LogicalOr
-        "==" -> return LogicalEqual
-        _ -> do
-          put s
-          throwError "unsupported operator"
+    "!" -> case s of
+      _
+        | isOperatorEnd s -> return LogicalNegation
+        | isSecond s "=" ->
+            put (drop 2 s)
+              >> return LogicalInequal
+        | otherwise -> return LogicalNegation
+    "^" -> return BitExor
+    "~" -> return BitNeg
+    "&" -> case s of
+      _
+        | isOperatorEnd s -> return BitAnd
+        | isSecond s "&" ->
+            put (drop 2 s)
+              >> return LogicalAnd
+        | otherwise -> return BitAnd
+    "|" -> case s of
+      _
+        | isOperatorEnd s -> return BitOr
+        | isSecond s "|" ->
+            put (drop 2 s)
+              >> return LogicalOr
+        | otherwise -> return BitOr
+    "<" -> case s of
+      _
+        | isOperatorEnd s -> return ComparisionLess
+        | isSecond s "=" ->
+            put (drop 2 s)
+              >> return ComparisionLessEqual
+        | isSecond s "<" ->
+            put (drop 2 s)
+              >> return ShiftLeft
+        | otherwise -> return ComparisionLess
+    ">" -> case s of
+      _
+        | isOperatorEnd s -> return ComparisionMore
+        | isSecond s "=" ->
+            put (drop 2 s)
+              >> return ComparisionMoreEqual
+        | isSecond s ">" ->
+            put (drop 2 s)
+              >> return ShiftRight
+        | otherwise -> return ComparisionMore
+    "=" -> case s of
+      _
+        | isSecond s "=" -> put (drop 2 s) >> return LogicalEqual
+        | otherwise -> return Assign
+    _ -> put s >> throwError "unsupported operator"
 
 pAddOp :: Parser Operator
 pAddOp = do

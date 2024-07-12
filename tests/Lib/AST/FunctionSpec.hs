@@ -6,6 +6,7 @@ import Control.Monad (forM_)
 import Lib.AST.Function
 import Lib.AST.Model
 import Lib.Parser
+import Lib.TestCommon
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
@@ -57,13 +58,7 @@ parseFunctionSignatureSpec = do
             "returns (uint256) { count += 1; } }"
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse function: " ++ input) $ do
-      let (result, s) = runParser pFunction input
-      it "gets the correct function" $ do
-        result `shouldBe` expectedResult
-      it "leaves the correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "function" pFunction
 
 parseFunctionArgsSpec :: Spec
 parseFunctionArgsSpec = do
@@ -106,6 +101,7 @@ parseFunctionQuotedArgs = do
             ""
           )
         ]
+
   forM_ testCases $ \(input, expectedResult, expectedState) -> do
     describe ("parse function args: " ++ input) $ do
       let (result, s) = runParser pFunctionArgsQuoted input
@@ -134,13 +130,7 @@ parseFunctionModifiers = do
             "returns {"
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse function modifiers: " ++ input) $ do
-      let (result, s) = runParser pFunctionDecorators input
-      it "could parse the modifiers" $ do
-        result `shouldBe` expectedResult
-      it "should leave correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "function decorator" pFunctionDecorators
 
 parseFunctionReturnsClauseSpec :: Spec
 parseFunctionReturnsClauseSpec = do

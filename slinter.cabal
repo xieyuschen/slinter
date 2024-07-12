@@ -60,6 +60,7 @@ test-suite tests
        Lib.AST.CommentSpec,
        Lib.AST.TypeSpec,
        Lib.AST.ExprSpec,
-       Lib.ParserSpec
+       Lib.ParserSpec,
+       Lib.TestCommon,
     build-tool-depends: hspec-discover:hspec-discover == 2.*
     ghc-options:    -fforce-recomp -Wall -Werror

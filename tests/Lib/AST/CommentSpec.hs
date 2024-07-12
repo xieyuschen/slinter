@@ -3,7 +3,8 @@ module Lib.AST.CommentSpec (spec) where
 import Control.Monad (forM_)
 import Lib.AST.Comment
 import Lib.Parser
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Lib.TestCommon
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -27,13 +28,7 @@ parseCommentSpec = do
             ""
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse comment: " ++ input) $ do
-      let (result, s) = runParser pComment input
-      it "gets the correct comment string" $ do
-        result `shouldBe` expectedResult
-      it "leaves the correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "comment" pComment
 
 parseSPDXCommentSpec :: Spec
 parseSPDXCommentSpec = do
@@ -47,13 +42,7 @@ parseSPDXCommentSpec = do
             ""
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse SPDX comment: " ++ input) $ do
-      let (result, s) = runParser pSPDXComment input
-      it "gets the correct comment string" $ do
-        result `shouldBe` expectedResult
-      it "leaves the correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "spdx comment" pSPDXComment
 
 parsePragmaSpec :: Spec
 parsePragmaSpec = do
@@ -75,10 +64,4 @@ parsePragmaSpec = do
             ""
           )
         ]
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse pragma version: " ++ input) $ do
-      let (result, s) = runParser pPragma input
-      it "gets the correct pragma string" $ do
-        result `shouldBe` expectedResult
-      it "leaves the correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "pragma" pPragma

@@ -5,8 +5,8 @@ module Lib.AST.TypeSpec where
 import Control.Monad (forM_)
 import Lib.AST.Model
 import Lib.AST.Type
-import Lib.Parser
-import Test.Hspec (Spec, describe, it, shouldBe)
+import Lib.TestCommon
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -112,39 +112,27 @@ spec = do
             "private _allowances;"
           )
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe ("parse type: " ++ input) $ do
-      let (result, s) = runParser pType input
-      it "gets the correct type" $ do
-        result `shouldBe` expected
-      it "leaves the correct state" $ do
-        s `shouldBe` left
+  forM_ testCases $ verifyParser "type" pType
 
 parseTypeWithBitLengthSpec :: Spec
 parseTypeWithBitLengthSpec = do
   let testCases =
-        [ ("uint", ("uint", Nothing), ""),
-          ("uint8", ("uint", Just $ BitLength 8), ""),
-          ("uint128", ("uint", Just $ BitLength 128), ""),
-          ("int", ("int", Nothing), ""),
-          ("int16", ("int", Just $ BitLength 16), ""),
-          ("custom256", ("custom256", Nothing), ""),
-          ("custom256type", ("custom256type", Nothing), ""),
-          ("custom256x18", ("custom256x18", Nothing), ""),
-          ("fixed256", ("fixed256", Nothing), ""),
-          ("fixed", ("fixed", Nothing), ""),
-          ("fixed256x80", ("fixed", Just $ BitLengthWithDecimal 256 80), ""),
-          ("bytes", ("bytes", Nothing), ""),
-          ("bytes3", ("bytes", Just $ BitLength 3), ""),
-          ("bytes9", ("bytes", Just $ BitLength 9), "")
+        [ ("uint", Right ("uint", Nothing), ""),
+          ("uint8", Right ("uint", Just $ BitLength 8), ""),
+          ("uint128", Right ("uint", Just $ BitLength 128), ""),
+          ("int", Right ("int", Nothing), ""),
+          ("int16", Right ("int", Just $ BitLength 16), ""),
+          ("custom256", Right ("custom256", Nothing), ""),
+          ("custom256type", Right ("custom256type", Nothing), ""),
+          ("custom256x18", Right ("custom256x18", Nothing), ""),
+          ("fixed256", Right ("fixed256", Nothing), ""),
+          ("fixed", Right ("fixed", Nothing), ""),
+          ("fixed256x80", Right ("fixed", Just $ BitLengthWithDecimal 256 80), ""),
+          ("bytes", Right ("bytes", Nothing), ""),
+          ("bytes3", Right ("bytes", Just $ BitLength 3), ""),
+          ("bytes9", Right ("bytes", Just $ BitLength 9), "")
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe "parse the type correctly" $ do
-      let (result, s') = runParser pTypeWithBitLength input
-      it "could parse the result successfully" $ do
-        result `shouldBe` Right expected
-      it "leave the correct state" $ do
-        s' `shouldBe` left
+  forM_ testCases $ verifyParser "type with bit length" pTypeWithBitLength
 
 parseTypeEnumSpec :: Spec
 parseTypeEnumSpec = do
@@ -170,13 +158,7 @@ parseTypeEnumSpec = do
             "} test state"
           )
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe ("parse the input correctly: " ++ input) $ do
-      let (result, s') = runParser pTypeEnum input
-      it "could parse the result successfully" $ do
-        result `shouldBe` expected
-      it "leave the correct state" $ do
-        s' `shouldBe` left
+  forM_ testCases $ verifyParser "type enum" pTypeEnum
 
 parseTypeAliasSpec :: Spec
 parseTypeAliasSpec = do
@@ -202,13 +184,7 @@ parseTypeAliasSpec = do
             "uint256"
           )
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe ("parse the input correctly: " ++ input) $ do
-      let (result, s') = runParser pTypeAlias input
-      it "could parse the result successfully" $ do
-        result `shouldBe` expected
-      it "leave the correct state" $ do
-        s' `shouldBe` left
+  forM_ testCases $ verifyParser "type alias" pTypeAlias
 
 parseTypeStructureSpec :: Spec
 parseTypeStructureSpec = do
@@ -272,13 +248,7 @@ parseTypeStructureSpec = do
             "{} test state"
           )
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe ("parse the input correctly: " ++ input) $ do
-      let (result, s') = runParser pTypeStruct input
-      it "could parse the result successfully" $ do
-        result `shouldBe` expected
-      it "leave the correct state" $ do
-        s' `shouldBe` left
+  forM_ testCases $ verifyParser "type struct" pTypeStruct
 
 parseTypeDifinitionSpec :: Spec
 parseTypeDifinitionSpec = do
@@ -303,10 +273,4 @@ parseTypeDifinitionSpec = do
             ""
           )
         ]
-  forM_ testCases $ \(input, expected, left) ->
-    describe ("parse the input correctly: " ++ input) $ do
-      let (result, s') = runParser pTypeDefinition input
-      it "could parse the result successfully" $ do
-        result `shouldBe` expected
-      it "leave the correct state" $ do
-        s' `shouldBe` left
+  forM_ testCases $ verifyParser "type definition" pTypeDefinition

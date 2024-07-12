@@ -143,9 +143,9 @@ data StateVariable = StateVariable
   deriving (Show, Eq)
 
 data Contract = Contract
-  { cname :: String,
-    cfunctions :: [Function],
-    cvariables :: [StateVariable]
+  { ctName :: String,
+    ctFunctions :: [Function],
+    ctVariables :: [StateVariable]
   }
   deriving (Show, Eq)
 
@@ -166,36 +166,48 @@ data STypeEnum = STypeEnum
   }
   deriving (Show, Eq)
 
+-- expression stands for a bool expression by now, for example 'a&&b' and 'a||b'
+data ExprBinary = ExprBinary
+  { leftOperand :: SExpr,
+    rightOperand :: SExpr,
+    bOperator :: Operator
+  }
+  deriving (Show, Eq)
+
 data Literal
   = LNum Int
   | LBool Bool
   | LString String
   deriving (Show, Eq)
 
-data SExpression
-  = Expr Exprv
-  | ParenthesizedExpr SExpression
-  | ExprVar String -- String refers to the variable name
-  | ExprL Literal
+data SExpr
+  = SExprB ExprBinary
+  | SExprParentheses SExpr
+  | SExprVar String -- String refers to the variable name
+  | SExprL Literal
   deriving (Show, Eq)
 
 data Operator
-  = LogicalAnd
-  | LogicalOr
-  | LogicalNegation
-  | LogicalEqual
-  | LogicalInequal
-  | ArithmeticAddition
-  | ArithmeticSubtraction
+  = LogicalAnd -- &&
+  | LogicalOr --  ||
+  | LogicalNegation -- !
+  | LogicalEqual -- ==
+  | LogicalInequal -- !=
+  | ArithmeticAddition -- +
+  | ArithmeticSubtraction -- -
   | ArithmeticMultiplication
-  | ArithmeticDivision
-  | ArithmeticModulus
-  deriving (Show, Eq)
-
--- expression stands for a bool expression by now, for example 'a&&b' and 'a||b'
-data Exprv = Exprv
-  { leftOperand :: SExpression,
-    rightOperand :: SExpression,
-    operator :: Operator
-  }
+  | ArithmeticDivision -- /
+  | ArithmeticModulus -- %
+  | ArithmeticExp --  **
+  | ComparisionLessEqual -- <=
+  | ComparisionLess -- <
+  | ComparisionMoreEqual -- >=
+  | ComparisionMore -- >
+  | BitAnd -- &
+  | BitOr --  |
+  | BitExor --  ^
+  | BitNeg -- ~
+  | ShiftLeft -- <<
+  | ShiftRight -- >>
+  | Assign -- =
   deriving (Show, Eq)

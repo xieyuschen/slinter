@@ -59,9 +59,9 @@ pContract = do
   let vars = mapMaybe getCtVariable fields
   return
     Contract
-      { cname = contractName,
-        cfunctions = fns,
-        cvariables = vars
+      { ctName = contractName,
+        ctFunctions = fns,
+        ctVariables = vars
       }
 
 -- 'uint256 public count;' under the contract scope
