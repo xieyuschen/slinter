@@ -2,7 +2,7 @@
 
 module Lib.AST.FunctionSpec (spec) where
 
-import Control.Monad (forM_)
+import Control.Monad
 import Lib.AST.Function
 import Lib.AST.Model
 import Lib.Parser
@@ -16,39 +16,54 @@ spec = do
   parseFunctionReturnsClauseSpec
   parseFunctionArgsSpec
   parseFunctionSignatureSpec
+  parseFuncCallSpec
 
 parseFunctionSignatureSpec :: Spec
 parseFunctionSignatureSpec = do
   let testCases =
-        [ ( "function inc(string name) public views { count += 1; }",
+        [ ( "function inc(string name) public pure { count += 1; }",
             Right
               Function
                 { fReturnTyp = Nothing,
-                  fargs = [(STypeString, "name")],
+                  fargs = [(STypeString, Just "name")],
                   fVisiblitySpecifier = VsPublic,
-                  fmodifiers = ["views"],
+                  fmodifiers = ["pure"],
                   fname = "inc"
                 },
             ""
           ),
-          ( "function inc(string name, uint256 new_name) views private returns (uint256) { count += 1; }",
+          ( "function inc(string) public pure { count += 1; }",
+            Right
+              Function
+                { fReturnTyp = Nothing,
+                  fargs = [(STypeString, Nothing)],
+                  fVisiblitySpecifier = VsPublic,
+                  fmodifiers = ["pure"],
+                  fname = "inc"
+                },
+            ""
+          ),
+          ( "function inc(string name, uint256 new_name) internal views returns (uint256) { count += 1; }",
             Right
               Function
                 { fReturnTyp = Just $ STypeUint 256,
-                  fargs = [(STypeString, "name"), (STypeUint 256, "new_name")],
-                  fVisiblitySpecifier = VsPrivate,
+                  fargs =
+                    [ (STypeString, Just "name"),
+                      (STypeUint 256, Just "new_name")
+                    ],
+                  fVisiblitySpecifier = VsInternal,
                   fmodifiers = ["views"],
                   fname = "inc"
                 },
             ""
           ),
-          ( "function inc() internal returns (uint256) { count += 1; } }",
+          ( "function inc() external payable returns (uint256) { count += 1; } }",
             Right
               Function
                 { fReturnTyp = Just $ STypeUint 256,
                   fargs = [],
-                  fVisiblitySpecifier = VsInternal,
-                  fmodifiers = [],
+                  fVisiblitySpecifier = VsExternal,
+                  fmodifiers = ["payable"],
                   fname = "inc"
                 },
             " }"
@@ -62,24 +77,17 @@ parseFunctionSignatureSpec = do
 
 parseFunctionArgsSpec :: Spec
 parseFunctionArgsSpec = do
-  describe "parse empty arg with quotes" $ do
-    let str = "uint256 name"
-    let (result, s) = runParser pFunctionArgs str
-    it "could parse the args" $ do
-      result `shouldBe` Right [(STypeUint 256, "name")]
-    it "should leave correct state" $ do
-      s `shouldBe` ""
-  describe "parse empty arg with quotes" $ do
-    let str = "uint256 name, string newname"
-    let (result, s) = runParser pFunctionArgs str
-    it "could parse the args" $ do
-      result
-        `shouldBe` Right
-          [ (STypeUint 256, "name"),
-            (STypeString, "newname")
-          ]
-    it "should leave correct state" $ do
-      s `shouldBe` ""
+  let testCases =
+        [ ("uint256 name", Right [(STypeUint 256, Just "name")], ""),
+          ( "uint256 name, string new_name",
+            Right
+              [ (STypeUint 256, Just "name"),
+                (STypeString, Just "new_name")
+              ],
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "parse function args" pFunctionArgs
 
 parseFunctionQuotedArgs :: Spec
 parseFunctionQuotedArgs = do
@@ -93,22 +101,20 @@ parseFunctionQuotedArgs = do
             ""
           ),
           ( " ( uint256 name) ",
-            Right [(STypeUint 256, "name")],
+            Right [(STypeUint 256, Just "name")],
             ""
           ),
-          ( " ( uint256 name, string oldname) ",
-            Right [(STypeUint 256, "name"), (STypeString, "oldname")],
+          ( " ( uint256 name, string old_name, fixed256x16) ",
+            Right
+              [ (STypeUint 256, Just "name"),
+                (STypeString, Just "old_name"),
+                (STypeFixed 256 16, Nothing)
+              ],
             ""
           )
         ]
 
-  forM_ testCases $ \(input, expectedResult, expectedState) -> do
-    describe ("parse function args: " ++ input) $ do
-      let (result, s) = runParser pFunctionArgsQuoted input
-      it "could parse the args" $ do
-        result `shouldBe` expectedResult
-      it "should leave correct state" $ do
-        s `shouldBe` expectedState
+  forM_ testCases $ verifyParser "function args quoted" pFunctionArgsQuoted
 
 parseFunctionModifiers :: Spec
 parseFunctionModifiers = do
@@ -141,3 +147,71 @@ parseFunctionReturnsClauseSpec = do
       result `shouldBe` Right (STypeUint 256)
     it "should leave correct state" $ do
       s `shouldBe` "{"
+
+parseFuncCallSpec :: Spec
+parseFuncCallSpec = do
+  let testCases =
+        [ ( "set({value: 2, key: 3})",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsNamedParameters [("value", SExprL (LNum 2)), ("key", SExprL (LNum 3))]
+                },
+            ""
+          ),
+          ( "example.set(2, 3)",
+            Right
+              ExprFnCall
+                { fnContractName = Just "example",
+                  fnName = "set",
+                  fnArguments = FnCallArgsList [SExprL (LNum 2), SExprL (LNum 3)]
+                },
+            ""
+          ),
+          ( "example.set({value: 2+1, key: -3})",
+            Right
+              ExprFnCall
+                { fnContractName = Just "example",
+                  fnName = "set",
+                  fnArguments =
+                    FnCallArgsNamedParameters
+                      [ ( "value",
+                          SExprB
+                            ExprBinary
+                              { leftOperand = SExprL (LNum 2),
+                                rightOperand = SExprL (LNum 1),
+                                bOperator = ArithmeticAddition
+                              }
+                        ),
+                        ( "key",
+                          SExprU
+                            ExprUnary
+                              { uOperator = Minus,
+                                uOperand = SExprL (LNum 3)
+                              }
+                        )
+                      ]
+                },
+            ""
+          ),
+          ( "set()",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsList []
+                },
+            ""
+          ),
+          ( "set({})",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsNamedParameters []
+                },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "function call" pFuncCall

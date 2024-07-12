@@ -119,7 +119,7 @@ data SType -- solidity type
 
 data ArrayN = ArrayN
   { aElemType :: SType,
-    aSize :: Maybe Int -- nothing means the dynamic size
+    aSize :: Maybe SExpr -- nothing means the dynamic size
   }
   deriving (Show, Eq)
 
@@ -127,7 +127,7 @@ data Function = Function
   { fmodifiers :: [String],
     fVisiblitySpecifier :: VisibilitySpecifier,
     fname :: String,
-    fargs :: [(SType, String)],
+    fargs :: [(SType, Maybe String)],
     fReturnTyp :: Maybe SType
   }
   deriving (Show, Eq)
@@ -192,12 +192,29 @@ data Literal
   | LString String
   deriving (Show, Eq)
 
+data FnCallArgs
+  = FnCallArgsList [SExpr] -- refers to the normal function call
+  -- refers to the 'named parameter' call
+  -- see https://docs.soliditylang.org/en/latest/control-structures.html#function-calls-with-named-parameters
+  | FnCallArgsNamedParameters [(String, SExpr)]
+  deriving (Show, Eq)
+
+data ExprFnCall = ExprFnCall
+  { -- Nothing refers to it's an internal function,
+    -- 'Just c' refers to the external function call from contract c
+    fnContractName :: Maybe String,
+    fnName :: String,
+    fnArguments :: FnCallArgs
+  }
+  deriving (Show, Eq)
+
 data SExpr
   = SExprB ExprBinary
   | SExprParentheses SExpr
   | SExprU ExprUnary
   | SExprVar String -- String refers to the variable name
   | SExprL Literal
+  | SExprF ExprFnCall
   deriving (Show, Eq)
 
 data Operator

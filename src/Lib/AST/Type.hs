@@ -11,6 +11,7 @@ import Data.Char (isAlpha, isNumber)
 import Data.Maybe (fromMaybe, isJust)
 import Debug.Trace
 import GHC.Base
+import Lib.AST.Expr (pExpression)
 import Lib.AST.Model
   ( ArrayN (ArrayN, aElemType),
     BitLengthDesc (..),
@@ -51,7 +52,7 @@ pTypeArray :: Parser SType
 pTypeArray = do
   elemTp <- pManySpaces >> pTypeSimple
   brackets <- pMany1 $ do
-    pOneKeyword leftSquareBracket >> optional pNumber <* pOneKeyword rightSquareBracket
+    pOneKeyword leftSquareBracket >> optional pExpression <* pOneKeyword rightSquareBracket
 
   return $
     foldl
@@ -210,7 +211,6 @@ pTypeWithDesc =
 pTypeWithLength :: Parser (String, Maybe BitLengthDesc)
 pTypeWithLength = do
   prefix <- pOne isAlpha
-  trace ("l " ++ prefix) $ pure ()
   guard $ prefix `elem` ["int", "uint", "bytes"]
   l <- optional pBitLength
   return (prefix, l)
@@ -218,7 +218,6 @@ pTypeWithLength = do
 pTypeWithLenDecimal :: Parser (String, Maybe BitLengthDesc)
 pTypeWithLenDecimal = do
   prefix <- pOne isAlpha
-  trace ("ld " ++ prefix) $ pure ()
   guard $ prefix `elem` ["fixed", "ufixed"]
   l <- pBitLengthDecimal
   return (prefix, Just l)

@@ -59,14 +59,14 @@ parseArrayMapSpec = do
               ( STypeArray
                   ArrayN
                     { aElemType = STypeInt 256,
-                      aSize = Just 3
+                      aSize = Just $ SExprL $ LNum 3
                     }
               ),
             ""
           ),
-          ( "int[x]", -- todo: technically, we should report an error here, instead of treat it as Int and left '[x]'
-            Right (STypeInt 256),
-            "[x]"
+          ( "int[x]", -- this is an inavlid syntax, we will report it in syntex check
+            Right (STypeArray (ArrayN {aElemType = STypeInt 256, aSize = Just (SExprVar "x")})),
+            ""
           ),
           ( "int[1][]",
             Right
@@ -76,7 +76,7 @@ parseArrayMapSpec = do
                         STypeArray
                           ArrayN
                             { aElemType = STypeInt 256,
-                              aSize = Just 1
+                              aSize = Just $ SExprL $ LNum 1
                             },
                       aSize = Nothing
                     }
@@ -93,7 +93,7 @@ parseArrayMapSpec = do
                             { aElemType = STypeInt 256,
                               aSize = Nothing
                             },
-                      aSize = Just 2
+                      aSize = Just $ SExprL $ LNum 2
                     }
               ),
             ""
@@ -109,6 +109,24 @@ parseArrayMapSpec = do
                               aSize = Nothing
                             },
                       aSize = Nothing
+                    }
+              ),
+            ""
+          ),
+          ( "int[2**20]", -- todo: fix me
+            Right
+              ( STypeArray
+                  ArrayN
+                    { aElemType = STypeInt 256,
+                      aSize =
+                        Just
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprL (LNum 2),
+                                  rightOperand = SExprL (LNum 20),
+                                  bOperator = ArithmeticExp
+                                }
+                          )
                     }
               ),
             ""

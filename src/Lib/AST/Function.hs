@@ -5,12 +5,17 @@ import Control.Monad.Except
   ( ExceptT (ExceptT),
     MonadError (throwError),
   )
-import Control.Monad.State (MonadState (state))
-import Data.Maybe (fromMaybe, isNothing, mapMaybe)
+import Control.Monad.State (MonadState (..))
+import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe, maybeToList)
+import Debug.Trace
 import GHC.Base ()
+import Lib.AST.Expr (pExpression)
 import Lib.AST.Model
   ( ContractField (CtFunction, CtVariable),
+    ExprFnCall (..),
+    FnCallArgs (..),
     Function (..),
+    SExpr,
     SType,
     StateVariable,
     VisibilitySpecifier (..),
@@ -29,6 +34,7 @@ import Lib.Parser
     pManySpaces,
     pOneKeyword,
     pSpace,
+    pTry,
     pUntil,
     runParser,
   )
@@ -52,17 +58,12 @@ pModifier = do
 -- todo: refine me to avoid case of usage
 -- parse the content of 'bytes32 newName, bytes32 oldName' in the function below
 -- function changeName(bytes32 newName, bytes32 oldName) public {
-pFunctionArgs :: Parser [(SType, String)]
-pFunctionArgs = ExceptT $ state $ \s -> do
-  let (result, s') = runParser (liftA2 (,) pType pIdentifier) s
-      re = fmap (: []) result
-  case re of
-    Left msg -> (Left $ "no args in function argument list: " ++ msg, s)
-    Right firstArg -> do
-      let (argsResult, s'') = runParser (many pFunctionHelper) s'
-      case argsResult of
-        Left msg -> (Left msg, s'')
-        Right args -> (Right (firstArg ++ args), s'')
+pFunctionArgs :: Parser [(SType, Maybe String)]
+pFunctionArgs =
+  liftA2
+    (:)
+    (liftA2 (,) pType $ optional pIdentifier)
+    (many pFunctionDotAndArg)
 
 pFunctionReturnTypeWithQuote :: Parser SType
 pFunctionReturnTypeWithQuote =
@@ -83,7 +84,7 @@ pReturnsClause =
     >> pFunctionReturnTypeWithQuote <* pManySpaces
 
 -- parse the '(name: uint)' as so on. it will consume the following spaces
-pFunctionArgsQuoted :: Parser [(SType, String)]
+pFunctionArgsQuoted :: Parser [(SType, Maybe String)]
 pFunctionArgsQuoted = do
   fmap (fromMaybe []) $
     pManySpaces
@@ -144,8 +145,8 @@ pFunction = do
         }
     )
 
-pFunctionHelper :: Parser (SType, String)
-pFunctionHelper =
+pFunctionDotAndArg :: Parser (SType, Maybe String)
+pFunctionDotAndArg =
   liftA2
     (,)
     ( pManySpaces
@@ -153,7 +154,7 @@ pFunctionHelper =
         >> pManySpaces
         >> pType
     )
-    pIdentifier
+    (optional pIdentifier)
 
 pVisibilitySpecifier :: Parser VisibilitySpecifier
 pVisibilitySpecifier = do
@@ -170,3 +171,66 @@ toVisibilitySpecifier str =
     "internal" -> return VsInternal
     "external" -> return VsExternal
     _ -> Nothing
+
+pFuncCall :: Parser ExprFnCall
+pFuncCall = do
+  (ct, fName) <-
+    pManySpaces
+      >> liftA2
+        (,)
+        -- use pTry here to make sure the identifier and keyword are consumed in a batch
+        (optional $ pTry $ pIdentifier <* pOneKeyword ".")
+        pIdentifier
+  args <- pTry pFuncCallArgsNamedParameters <|> pTry pFuncCallArgsList
+  return
+    ExprFnCall
+      { fnContractName = ct,
+        fnName = fName,
+        fnArguments = args
+      }
+
+pFuncCallNamedParameterKeyValue :: Parser (String, SExpr)
+pFuncCallNamedParameterKeyValue =
+  liftA2
+    (,)
+    (pManySpaces >> pIdentifier <* (pManySpaces >> pOneKeyword ":"))
+    pExpression
+
+pFuncCallArgsNamedParameters :: Parser FnCallArgs
+pFuncCallArgsNamedParameters = do
+  arg1 <-
+    pManySpaces
+      >> pOneKeyword leftParenthesis
+      >> pManySpaces
+      >> pOneKeyword leftCurlyBrace
+      >> optional pFuncCallNamedParameterKeyValue
+  args <-
+    many
+      ( pManySpaces
+          >> pOneKeyword "," -- todo: this matching should be unified in a function in parser
+          >> pManySpaces
+          >> pTry pFuncCallNamedParameterKeyValue
+      )
+  s <- get
+  trace (show args) $ pure ()
+  trace (s) $ pure ()
+  _ <-
+    pOneKeyword rightCurlyBrace
+      >> pManySpaces
+      >> pOneKeyword rightParenthesis
+  return $ FnCallArgsNamedParameters $ maybeToList arg1 ++ args
+
+pFuncCallArgsList :: Parser FnCallArgs
+pFuncCallArgsList = do
+  arg1 <-
+    pManySpaces
+      >> pOneKeyword leftParenthesis
+      >> optional pExpression
+  args <-
+    many $
+      pManySpaces
+        >> pOneKeyword ","
+        >> pManySpaces
+        >> pExpression
+  _ <- pOneKeyword rightParenthesis
+  return $ FnCallArgsList $ maybeToList arg1 ++ args
