@@ -212,7 +212,7 @@ parseTypeWithBitLengthSpec = do
           ("bytes3", Right ("bytes", Just $ BitLength 3), ""),
           ("bytes9", Right ("bytes", Just $ BitLength 9), "")
         ]
-  forM_ testCases $ verifyParser "type with bit length" pTypeWithBitLength
+  forM_ testCases $ verifyParser "type with bit length" pTypeWithDesc
 
 parseTypeEnumSpec :: Spec
 parseTypeEnumSpec = do

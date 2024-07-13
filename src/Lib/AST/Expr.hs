@@ -11,7 +11,7 @@ import Lib.Parser
 pExpression :: Parser SExpr
 pExpression = do
   left <- pTerm
-  rest <- pMany (pManySpaces >> ((,) <$> pAddOp <*> pTerm))
+  rest <- many (pManySpaces >> ((,) <$> pTry pAddOp <*> pTerm))
   return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
 pFactor :: Parser SExpr
@@ -26,15 +26,17 @@ pFactor =
 pTerm :: Parser SExpr
 pTerm = do
   left <- pFactor
-  rest <- pMany (pManySpaces >> ((,) <$> pMulOp <*> pFactor))
+  rest <- many (pManySpaces >> ((,) <$> pTry pMulOp <*> pFactor))
   return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
 pParenthesizedExpr :: Parser SExpr
 pParenthesizedExpr = do
-  _ <- pManySpaces >> pOne leftParenthesis id
-  exp <- pExpression
-  _ <- pManySpaces >> pOne rightParenthesis id
-  return $ SExprParentheses exp
+  SExprParentheses
+    <$> ( pManySpaces
+            >> pOneKeyword leftParenthesis
+            >> pExpression
+              <* (pManySpaces >> pOneKeyword rightParenthesis)
+        )
 
 pLiteral :: Parser Literal
 pLiteral =
@@ -73,8 +75,7 @@ pUnaryExpr = do
 
 pOperator :: Parser Operator
 pOperator = do
-  _ <- pManySpaces
-  s <- get
+  s <- pManySpaces >> get
   guard $ not $ null s -- check whether the string has enough chars to consume
   put $ drop 1 s
   case take 1 s of
@@ -143,14 +144,11 @@ pOperator = do
 
 pAddOp :: Parser Operator
 pAddOp = do
-  s <- get
   op <- pManySpaces >> pOperator
   case op of
     ArithmeticMultiplication -> do
-      put s
       throwError "shouldn't use * here"
     ArithmeticDivision -> do
-      put s
       throwError "shouldn't use / here"
     _ -> do
       -- for now, we only support precedence between */ and +-
@@ -158,11 +156,9 @@ pAddOp = do
 
 pMulOp :: Parser Operator
 pMulOp = do
-  s <- get
   op <- pManySpaces >> pOperator
   case op of
     ArithmeticMultiplication -> return ArithmeticMultiplication
     ArithmeticDivision -> return ArithmeticDivision
     _ -> do
-      put s
       throwError "not * or /"

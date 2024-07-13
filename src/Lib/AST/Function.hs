@@ -25,12 +25,9 @@ import Lib.AST.Type (pType)
 import Lib.Parser
   ( Parser,
     pIdentifier,
-    pMany,
     pMany1Stop,
     pManySpaces,
-    pOne,
     pOneKeyword,
-    pOpt,
     pSpace,
     pUntil,
     runParser,
@@ -46,13 +43,13 @@ getCtVariable _ = Nothing
 
 pModifier :: Parser String
 pModifier = do
-  _ <- pManySpaces
-  modifer <- pIdentifier
+  modifer <- pManySpaces >> pIdentifier
   case modifer of
     "public" -> return "public"
     "view" -> return "view"
     _ -> error ""
 
+-- todo: refine me to avoid case of usage
 -- parse the content of 'bytes32 newName, bytes32 oldName' in the function below
 -- function changeName(bytes32 newName, bytes32 oldName) public {
 pFunctionArgs :: Parser [(SType, String)]
@@ -62,69 +59,64 @@ pFunctionArgs = ExceptT $ state $ \s -> do
   case re of
     Left msg -> (Left $ "no args in function argument list: " ++ msg, s)
     Right firstArg -> do
-      let (argsResult, s'') = runParser (pMany pFunctionHelper) s'
+      let (argsResult, s'') = runParser (many pFunctionHelper) s'
       case argsResult of
         Left msg -> (Left msg, s'')
         Right args -> (Right (firstArg ++ args), s'')
 
 pFunctionReturnTypeWithQuote :: Parser SType
-pFunctionReturnTypeWithQuote = do
-  _ <-
-    pManySpaces
-      >> pOne "(" id
-      >> pManySpaces
-  tp <- pType
-  _ <-
-    pManySpaces
-      >> pOne ")" id
-  return tp
+pFunctionReturnTypeWithQuote =
+  pManySpaces
+    >> pOneKeyword "("
+    >> pManySpaces
+    >> pType
+      <* ( pManySpaces
+             >> pOneKeyword ")"
+         )
 
 -- consume 'returns (uint256)' function return part
 pReturnsClause :: Parser SType
-pReturnsClause = do
-  _ <-
+pReturnsClause =
+  do
     pManySpaces
-      >> pOne keywordReturns id
-  tp <- pFunctionReturnTypeWithQuote
-  _ <- pManySpaces
-  return tp
+      >> pOneKeyword keywordReturns
+    >> pFunctionReturnTypeWithQuote <* pManySpaces
 
 -- parse the '(name: uint)' as so on. it will consume the following spaces
 pFunctionArgsQuoted :: Parser [(SType, String)]
 pFunctionArgsQuoted = do
-  _ <-
+  fmap (fromMaybe []) $
     pManySpaces
-      >> pOne leftParenthesis id
+      >> pOneKeyword leftParenthesis
       >> pManySpaces
-  result <- pOpt pFunctionArgs
-  let args = fromMaybe [] result
-  _ <-
-    pManySpaces
-      >> pOne rightParenthesis id
-      >> pManySpaces
-  return args
+      >> optional pFunctionArgs
+        <* ( pManySpaces
+               >> pOneKeyword rightParenthesis
+               >> pManySpaces
+           )
 
 -- parse all decorators(modifers and visibility specifiers) seperated by whitespaces into a list of string
 pFunctionDecorators :: Parser [String]
 pFunctionDecorators = do
-  _ <- pManySpaces
   modifiers <-
-    pMany1Stop
-      ( pIdentifier
-          <|> fmap (const "") pSpace
-      )
-      "returns"
-  _ <- pManySpaces
+    pManySpaces
+      *> pMany1Stop
+        ( pIdentifier
+            <|> fmap (const "") pSpace
+        )
+        "returns"
+      <* pManySpaces
   -- we need to filter the empty string,
   -- because we omit the empty string for space
   return $ filter (/= "") modifiers
 
 pFunction :: Parser Function
 pFunction = do
-  _ <-
+  name <-
     pManySpaces
       >> pOneKeyword keywordFunction
-  name <- pManySpaces >> pIdentifier
+      >> pManySpaces
+      >> pIdentifier
   args <- pManySpaces >> pFunctionArgsQuoted
 
   -- todo: support custom modifiers as well
@@ -134,13 +126,14 @@ pFunction = do
     1 -> return $ head specifiers
     _ -> throwError "visibility specifier should contain only one for each function"
   let modifiers = filter (isNothing . toVisibilitySpecifier) decorators
-  optReturns <- pOpt pReturnsClause
-  _ <-
-    pManySpaces
-      >> pOne leftCurlyBrace id
-      -- todo: parse the function body
-      >> pUntil (== head rightCurlyBrace)
-      >> pOne rightCurlyBrace id
+  optReturns <-
+    optional pReturnsClause
+      <* ( pManySpaces
+             >> pOneKeyword leftCurlyBrace
+             -- todo: parse the function body
+             >> pUntil (== head rightCurlyBrace)
+             >> pOneKeyword rightCurlyBrace
+         )
   return
     ( Function
         { fname = name,
@@ -152,19 +145,19 @@ pFunction = do
     )
 
 pFunctionHelper :: Parser (SType, String)
-pFunctionHelper = do
-  _ <-
-    pManySpaces
-      >> pOne "," id
-      >> pManySpaces
-  tpy <- pType
-  ident <- pIdentifier
-  return (tpy, ident)
+pFunctionHelper =
+  liftA2
+    (,)
+    ( pManySpaces
+        >> pOneKeyword ","
+        >> pManySpaces
+        >> pType
+    )
+    pIdentifier
 
 pVisibilitySpecifier :: Parser VisibilitySpecifier
 pVisibilitySpecifier = do
-  _ <- pManySpaces
-  ident <- pIdentifier
+  ident <- pManySpaces >> pIdentifier
   case toVisibilitySpecifier ident of
     Just specifier -> return specifier
     Nothing -> error "not a valid visible specifier"
@@ -176,5 +169,4 @@ toVisibilitySpecifier str =
     "private" -> return VsPrivate
     "internal" -> return VsInternal
     "external" -> return VsExternal
-    --
     _ -> Nothing

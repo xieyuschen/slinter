@@ -1,8 +1,11 @@
+{-# LANGUAGE TupleSections #-}
+
 module Lib.AST.Type where
 
-import Control.Applicative ()
+import Control.Applicative (asum, optional)
 import Control.Arrow (Arrow (first))
 import Control.Monad.Except
+import Control.Monad.RWS (MonadReader (ask))
 import Control.Monad.State (MonadState (get, put, state))
 import Data.Char (isAlpha, isNumber)
 import Data.Maybe (fromMaybe, isJust)
@@ -24,13 +27,13 @@ import Lib.Parser
   ( Parser,
     isUnderscore,
     pIdentifier,
-    pMany,
     pMany1,
     pManySpaces,
     pNumber,
     pOne,
-    pOpt,
+    pOneKeyword,
     pTry,
+    pUntil,
     runParser,
   )
 import Text.Read (readMaybe)
@@ -48,10 +51,8 @@ pTypeArray :: Parser SType
 pTypeArray = do
   elemTp <- pManySpaces >> pTypeSimple
   brackets <- pMany1 $ do
-    _ <- pOne leftSquareBracket id
-    sizeMaybe <- pOpt pNumber
-    _ <- pOne rightSquareBracket id
-    return sizeMaybe
+    pOneKeyword leftSquareBracket >> optional pNumber <* pOneKeyword rightSquareBracket
+
   return $
     foldl
       ( \acc v ->
@@ -73,13 +74,21 @@ pTypeArray = do
 -- and can be any valid identifier that is not a type.
 pTypeMapping :: Parser Mapping
 pTypeMapping = do
-  _ <- pManySpaces >> pOne "mapping(" id >> pManySpaces
-  keyTyp <- pType
+  keyTyp <-
+    pManySpaces
+      >> pOneKeyword "mapping("
+      >> pManySpaces
+      >> pType
+
   -- todo: check the key type should be built-in value type, bytes, string, or any contract or enum type
-  _ <- pOpt pIdentifier -- parse the name, todo: check whether need to store the name
-  _ <- pManySpaces >> pOne "=>" id >> pManySpaces
-  valTpy <- pType
-  _ <- pOpt pIdentifier >> pOne ")" id >> pManySpaces
+  _ <- optional pIdentifier -- parse the name, todo: check whether need to store the name
+  valTpy <-
+    pManySpaces
+      >> pOneKeyword "=>"
+      >> pManySpaces
+      >> pType
+
+  _ <- optional pIdentifier >> pOneKeyword ")" >> pManySpaces
   return
     Mapping
       { mKeyType = keyTyp,
@@ -95,79 +104,83 @@ pTypeDefinition =
 -- 'type UFixed256x18 is uint256;'
 pTypeAlias :: Parser SAlias
 pTypeAlias = do
-  _ <-
-    pManySpaces
-      >> pOne "type" id
-      >> pManySpaces
-  ident <- pIdentifier
-  _ <-
-    pManySpaces
-      >> pOne "is" id
-  tp <- pType
-  return $
-    SAlias
-      { salias = ident,
-        saliasOriginType = tp
-      }
+  liftA2
+    ( \ident tp ->
+        SAlias
+          { salias = ident,
+            saliasOriginType = tp
+          }
+    )
+    ( pManySpaces
+        >> pOneKeyword "type"
+        >> pManySpaces
+        >> pIdentifier
+          <* ( pManySpaces
+                 >> pOneKeyword "is"
+             )
+    )
+    pType
 
 pTypeStruct :: Parser Structure
-pTypeStruct = do
-  _ <-
-    pManySpaces
-      >> pOne "struct" id
-      >> pManySpaces
-  ident <- pIdentifier
-  _ <-
-    pManySpaces
-      >> pOne "{" id
-      >> pManySpaces
-  pairs <- pMany $ do
-    tp <-
-      pManySpaces
-        >> pType
-    name <- pIdentifier
-    _ <-
-      pManySpaces
-        >> pOne ";" id
-    return (tp, name)
-
-  _ <-
-    pManySpaces
-      >> pOne "}" id
-  return $
-    Structure
-      { structName = ident,
-        structFields = pairs
-      }
+pTypeStruct =
+  liftA2
+    ( \ident pairs ->
+        Structure
+          { structName = ident,
+            structFields = pairs
+          }
+    )
+    ( pManySpaces
+        >> pOneKeyword "struct"
+        >> pManySpaces
+        >> pIdentifier
+          <* ( pManySpaces
+                 >> pOneKeyword "{"
+                 >> pManySpaces
+             )
+    )
+    ( many $
+        liftA2
+          (,)
+          ( pManySpaces
+              >> pType
+          )
+          ( pIdentifier
+              <* ( pManySpaces
+                     >> pOneKeyword ";"
+                 )
+          )
+    )
+    <* ( pManySpaces
+           >> pOneKeyword "}"
+       )
 
 -- 'enum ActionChoices { GoLeft, GoRight, GoStraight, SitStill }'
 pTypeEnum :: Parser STypeEnum
 pTypeEnum = do
-  _ <-
+  enum_name <-
     pManySpaces
-      >> pOne "enum" id
+      >> pOneKeyword "enum"
       >> pManySpaces
-  enum_name <- pIdentifier
-  _ <-
-    pManySpaces
-      >> pOne "{" id
-      >> pManySpaces
-  enum1 <- pIdentifier
-  enums <-
-    pOpt $
-      pMany $
-        pManySpaces
-          >> pOne "," id
-          >> pManySpaces
-          >> pIdentifier
+      >> pIdentifier
 
-  _ <-
+  enum1 <-
     pManySpaces
-      >> pOne "}" id
+      >> pOneKeyword "{"
+      >> pManySpaces
+      >> pIdentifier
+  enums <-
+    many $
+      pManySpaces
+        >> pOneKeyword ","
+        >> pManySpaces
+        >> pIdentifier
+  _ <- pManySpaces >> pOneKeyword "}"
+
   return $
     STypeEnum
       { ename = enum_name,
-        eelems = enum1 : fromMaybe [] enums
+        eelems = enum1 : enums
       }
 
 isValidDesc :: BitLengthDesc -> Bool
@@ -182,76 +195,115 @@ extractBitLengthWithDecimal :: BitLengthDesc -> Maybe (Int, Int)
 extractBitLengthWithDecimal (BitLengthWithDecimal l d) = Just (l, d)
 extractBitLengthWithDecimal _ = Nothing
 
--- pTypeWithBitLength tries to consume an identifier as two parts, the letter parts and the integer parts
+-- pTypeWithDesc tries to consume an identifier as two parts, the letter parts and the integer parts
 -- for the types such as int8, int16, ... int256
 -- and we support the standard types in solidity only here, the custom one won't be treated as this
 -- it consumes the alpha letters from the beginning, and tries to parse the following parts as a integer
 -- if it fails, it will treat the indentifier as a whole and parses a result without number part
-pTypeWithBitLength :: Parser (String, Maybe BitLengthDesc)
-pTypeWithBitLength = ExceptT $ state $ \s ->
-  let (prefix, s') = span isAlpha s
-      cal = foldr (liftA2 (||)) (const False) [isNumber, isAlpha, isUnderscore]
-   in if null prefix
-        then first Left ("Failed to parse identifier", s')
-        else
-          let (ident, rest) = span cal s
-              (leftIdent, s'') = span cal s'
-           in if prefix `notElem` ["int", "uint", "fixed", "ufixed", "bytes"]
-                then do
-                  -- the type is not a primitive type with bit length, we parse it as a pure type string
-                  first Right ((ident, Nothing), rest)
-                else
-                  -- the bit length case
-                  if all isNumber leftIdent && prefix `notElem` ["fixed", "ufixed"]
-                    then
-                      -- all leftIdent is number
-                      first Right ((prefix, BitLength <$> readMaybe leftIdent), s'')
-                    else
-                      -- Check for fixed-point format "MxN"
-                      let (mPart, nPart) = break (== 'x') leftIdent
-                       in if not (null nPart) && all isNumber mPart && all isNumber (tail nPart)
-                            then
-                              -- ensure the mPart and nPart are numbers
-                              let mValue = readMaybe mPart :: Maybe Int
-                                  nValue = readMaybe (tail nPart) :: Maybe Int
-                               in if isJust mValue && isJust nValue
-                                    then (Right (prefix, Just $ BitLengthWithDecimal (read mPart) (read $ tail nPart)), s'')
-                                    else (Right (ident, Nothing), rest)
-                            else
-                              -- if the suffix is not a pure number or valid fixed-point format,
-                              -- we will restore and consume it as an identifier
-                              (Right (ident, Nothing), rest)
+pTypeWithDesc :: Parser (String, Maybe BitLengthDesc)
+pTypeWithDesc =
+  pTry pTypeWithLength
+    <|> pTry pTypeWithLenDecimal
+    <|> fmap (,Nothing) pIdentifier
+
+-- parse the following types: ["int", "uint", "fixed", "ufixed", "bytes"]
+pTypeWithLength :: Parser (String, Maybe BitLengthDesc)
+pTypeWithLength = do
+  prefix <- pOne isAlpha
+  trace ("l " ++ prefix) $ pure ()
+  guard $ prefix `elem` ["int", "uint", "bytes"]
+  l <- optional pBitLength
+  return (prefix, l)
+
+pTypeWithLenDecimal :: Parser (String, Maybe BitLengthDesc)
+pTypeWithLenDecimal = do
+  prefix <- pOne isAlpha
+  trace ("ld " ++ prefix) $ pure ()
+  guard $ prefix `elem` ["fixed", "ufixed"]
+  l <- pBitLengthDecimal
+  return (prefix, Just l)
+
+-- fixed-point format "MxN"
+pBitLengthDecimal :: Parser BitLengthDesc
+pBitLengthDecimal = do
+  m <- pNumber
+  n <- pOneKeyword "x" >> pNumber
+  return $ BitLengthWithDecimal m n
+
+pBitLength :: Parser BitLengthDesc
+pBitLength = BitLength <$> pNumber
+
+pBool :: (String, Maybe BitLengthDesc) -> Parser SType
+pBool (s, _) = do
+  guard $ s == "bool"
+  return STypeBool
+
+pInt :: (String, Maybe BitLengthDesc) -> Parser SType
+pInt (s, bit) = do
+  guard $ s == "int"
+  guard $ maybe True isValidDesc bit
+  return $ STypeInt $ fromMaybe 256 (bit >>= extractBitLength)
+
+pUInt :: (String, Maybe BitLengthDesc) -> Parser SType
+pUInt (s, bit) = do
+  guard $ s == "uint"
+  guard $ maybe True isValidDesc bit
+  return $ STypeUint $ fromMaybe 256 (bit >>= extractBitLength)
+
+pFixed :: (String, Maybe BitLengthDesc) -> Parser SType
+pFixed (s, bit) = do
+  guard $ s == "fixed"
+  guard $ maybe True isValidDesc bit
+  let l = maybe 128 fst (bit >>= extractBitLengthWithDecimal)
+  let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
+  return $ STypeFixed l d
+
+pUFixed :: (String, Maybe BitLengthDesc) -> Parser SType
+pUFixed (s, bit) = do
+  guard $ s == "ufixed"
+  guard $ maybe True isValidDesc bit
+  let l = maybe 128 fst (bit >>= extractBitLengthWithDecimal)
+  let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
+  return $ STypeUFixed l d
+
+pAddress :: (String, Maybe BitLengthDesc) -> Parser SType
+pAddress (s, bit) = do
+  guard $ s == "address"
+  payable <- pManySpaces >> optional (pOneKeyword "payable")
+  return $ maybe STypeAddress (const STypePayableAddress) payable
+
+pStringType :: (String, Maybe BitLengthDesc) -> Parser SType
+pStringType (s, _) = do
+  guard $ s == "string"
+  return STypeString
+
+pBytes :: (String, Maybe BitLengthDesc) -> Parser SType
+pBytes (s, bit) = do
+  guard $ s == "bytes"
+  guard $ maybe True (\x -> 1 <= x && x <= 8) (bit >>= extractBitLength)
+  return $ STypeBytes $ fromMaybe 1 (bit >>= extractBitLength)
+
+pCustom :: (String, Maybe BitLengthDesc) -> Parser SType
+pCustom (s, _) = do
+  -- built-in type should be supported already inside the
+  guard $ s `notElem` ["int", "uint", "fixed", "ufixed", "bytes"]
+  return $ STypeCustom $ s
 
 pTypeSimple :: Parser SType
-pTypeSimple = do
-  (tpy, bit) <- pTypeWithBitLength
-  _ <- pManySpaces
-  case tpy of
-    "bool" -> return STypeBool
-    "int" -> do
-      guard $ maybe True isValidDesc bit
-      return $ STypeInt $ fromMaybe 256 (bit >>= extractBitLength)
-    "uint" -> do
-      guard $ maybe True isValidDesc bit
-      return $ STypeUint $ fromMaybe 256 (bit >>= extractBitLength)
-    "fixed" -> do
-      guard $ maybe True isValidDesc bit
-      let l = maybe 128 fst (bit >>= extractBitLengthWithDecimal)
-      let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
-      return $ STypeFixed l d
-    "ufixed" -> do
-      guard $ maybe True isValidDesc bit
-      let l = maybe 128 fst (bit >>= extractBitLengthWithDecimal)
-      let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
-      return $ STypeUFixed l d
-    "address" -> do
-      _ <- pManySpaces
-      payable <- pOpt $ pOne "payable" id
-      case payable of
-        Nothing -> return STypeAddress
-        Just _ -> return STypePayableAddress
-    "string" -> return STypeString
-    "bytes" -> do
-      guard $ maybe True (\x -> 1 <= x && x <= 8) (bit >>= extractBitLength)
-      return $ STypeBytes $ fromMaybe 1 (bit >>= extractBitLength)
-    _ -> return $ STypeCustom tpy
+pTypeSimple =
+  ( pTypeWithDesc >>= \desc ->
+      asum $
+        fmap
+          pTry
+          [ pBool desc,
+            pInt desc,
+            pUInt desc,
+            pFixed desc,
+            pUFixed desc,
+            pAddress desc,
+            pStringType desc,
+            pBytes desc,
+            pCustom desc
+          ]
+  )
+    <* pManySpaces

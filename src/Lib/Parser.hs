@@ -5,6 +5,7 @@ module Lib.Parser where
 import Control.Applicative
   ( Alternative ((<|>)),
     Applicative (liftA2),
+    optional,
   )
 import Control.Arrow (Arrow (first))
 import Control.Monad.Except
@@ -68,20 +69,12 @@ pUntil cond = ExceptT $ state $ \s -> do
     _ -> first Right (left, right)
 
 -- 0 or more times
-pMany :: Parser a -> Parser [a]
-pMany p = pMany1 p <|> return []
-
--- 0 or 1 time
-pOpt :: Parser a -> Parser (Maybe a)
-pOpt p = ExceptT $ state $ \s -> do
-  let (result, s') = runParser p s
-  case result of
-    Left _ -> first Right (Nothing, s)
-    Right d -> first Right (Just d, s')
+many :: Parser a -> Parser [a]
+many p = pMany1 p <|> return []
 
 -- 1 or more times
 pMany1 :: Parser a -> Parser [a]
-pMany1 p = liftA2 (:) p (pMany p)
+pMany1 p = liftA2 (:) p (many p)
 
 pManyStop :: (Eq a) => Parser a -> a -> Parser [a]
 pManyStop p v = ExceptT $ state $ \s -> do
@@ -107,10 +100,17 @@ pMany1Stop p v = ExceptT $ state $ \s -> do
           let (r, s'') = runParser (pManyStop p v) s'
           (fmap (d :) r, s'')
 
+pOne :: (Char -> Bool) -> Parser String
+pOne f = do
+  s <- get
+  let (prefix, s') = span f s
+  guard $ not $ null prefix
+  put s' >> return prefix
+
 -- one creates a parser to consume the given string
 -- and generate a type based on the passed constructor
-pOne :: String -> (String -> a) -> Parser a
-pOne desired f = ExceptT $ state $ \s -> do
+pStringTo :: String -> (String -> a) -> Parser a
+pStringTo desired f = ExceptT $ state $ \s -> do
   case stripPrefix desired s of
     Nothing -> first Left ("fail to find desired charactor: '" ++ desired ++ "';", s)
     Just remainder -> first Right (f desired, remainder)
@@ -120,10 +120,10 @@ safeTail [] = Nothing
 safeTail xs = Just $ tail xs
 
 pManySpaces :: Parser [()]
-pManySpaces = pMany pSpace
+pManySpaces = many pSpace
 
 pOneKeyword :: String -> Parser String
-pOneKeyword s = pOne s id
+pOneKeyword s = pStringTo s id
 
 pSpace :: Parser ()
 pSpace = ExceptT $ state $ \s -> do
@@ -191,8 +191,12 @@ pIdentifier = ExceptT $ state $ \s ->
 
 pSemVer :: Parser SemVer
 pSemVer = do
-  _ <- pManySpaces
-  rangeC <- pOneKeyword "^" <|> pOneKeyword "~" <|> pOneKeyword "*" <|> pure ""
+  rangeC <-
+    pManySpaces
+      >> pOneKeyword "^"
+        <|> pOneKeyword "~"
+        <|> pOneKeyword "*"
+        <|> pure ""
   let char = case rangeC of
         "^" -> Just Caret
         "~" -> Just Tilde
@@ -210,8 +214,7 @@ pSemVer = do
         )
     _ -> do
       majorV <- pNumber
-      _ <- pOneKeyword "."
-      minorV <- pNumber
-      _ <- pOpt (pOneKeyword ".")
-      patchV <- pOpt pNumber -- todo: refine me
+      minorV <- pOneKeyword "." >> pNumber
+      _ <- optional (pOneKeyword ".")
+      patchV <- optional pNumber -- todo: refine me
       return (SemVer {major = majorV, minor = minorV, patch = patchV, semVerRangeMark = char})

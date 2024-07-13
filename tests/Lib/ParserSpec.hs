@@ -11,12 +11,9 @@ import Lib.Parser
     SemVer (SemVer, major, minor, patch, semVerRangeMark),
     SemVerRangeMark (Tilde, Wildcards),
     pIdentifier,
-    pMany,
     pManySpaces,
-    pOne,
     pOneKeyword,
     pSemVer,
-    pSpace,
     runParser,
   )
 import Test.Hspec (Spec, describe, it, shouldBe)
@@ -26,17 +23,18 @@ spec = do
   parseManyTokensSpec
   parseVersionSpec
 
-structCom :: Lib.Parser.Parser (String, String, String)
+structCom :: Parser (String, String, String)
 structCom = do
-  k1 <- Lib.Parser.pOne "type" id
-  _ <- Lib.Parser.pMany Lib.Parser.pSpace
-  ident <- Lib.Parser.pIdentifier
-  _ <- Lib.Parser.pManySpaces
-  k2 <- Lib.Parser.pOneKeyword "struct"
-  _ <- Lib.Parser.pManySpaces
-  _ <- Lib.Parser.pOne "{" id
-  _ <- Lib.Parser.pManySpaces
-  _ <- Lib.Parser.pOne "}" id
+  k1 <- pOneKeyword "type" <* pManySpaces
+  ident <- pIdentifier <* pManySpaces
+  k2 <-
+    pOneKeyword "struct"
+      <* ( pManySpaces
+             >> pOneKeyword "{"
+             >> pManySpaces
+             >> pOneKeyword "}"
+         )
+
   return (k1, ident, k2)
 
 parseManyTokensSpec :: Spec
@@ -65,7 +63,7 @@ parseManyTokensSpec = do
         ]
   forM_ succeededCases $ \(input, expected, left) ->
     describe "parse helloworld identifier" $ do
-      let (result, s') = Lib.Parser.runParser structCom input
+      let (result, s') = runParser structCom input
       it "could parse the result successfully" $ do
         result `shouldBe` Right expected
       it "leave the correct state" $ do
@@ -74,15 +72,15 @@ parseManyTokensSpec = do
 parseVersionSpec :: Spec
 parseVersionSpec = do
   let testCases =
-        [ ("~0.8.24", Right (Lib.Parser.SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Just Lib.Parser.Tilde}), ""),
-          ("*", Right (Lib.Parser.SemVer {major = 0, minor = 0, patch = Nothing, semVerRangeMark = Just Lib.Parser.Wildcards}), ""),
-          ("0.8.24", Right (Lib.Parser.SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Nothing}), "")
+        [ ("~0.8.24", Right (SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Just Tilde}), ""),
+          ("*", Right (SemVer {major = 0, minor = 0, patch = Nothing, semVerRangeMark = Just Wildcards}), ""),
+          ("0.8.24", Right (SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Nothing}), "")
         ]
   forM_ testCases f
   where
     f (input, expectedResult, expectedState) =
       describe ("parse version " ++ input) $ do
-        let (result, s) = Lib.Parser.runParser Lib.Parser.pSemVer input
+        let (result, s) = runParser pSemVer input
         it "gets the correct comment string" $ do
           result `shouldBe` expectedResult
         it "leaves the correct state" $ do

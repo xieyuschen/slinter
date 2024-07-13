@@ -1,6 +1,7 @@
 module Lib.AST.Contract where
 
-import Control.Applicative (Alternative ((<|>)))
+import Control.Applicative
+import Control.Applicative (Alternative ((<|>)), optional)
 import Data.Maybe (mapMaybe)
 import Lib.AST.Comment (pComment)
 import Lib.AST.Function
@@ -21,11 +22,8 @@ import Lib.AST.Type (pType)
 import Lib.Parser
   ( Parser,
     pIdentifier,
-    pMany,
     pManySpaces,
-    pOne,
     pOneKeyword,
-    pOpt,
   )
 
 -- contract Counter {
@@ -38,23 +36,23 @@ import Lib.Parser
 -- }
 pContract :: Parser Contract
 pContract = do
-  _ <-
+  contractName <-
     pManySpaces
       >> pOneKeyword keywordContract
       >> pManySpaces
-  contractName <- pIdentifier
-  _ <-
-    pManySpaces
-      >> pOneKeyword leftCurlyBrace
-      >> pManySpaces
+        *> pIdentifier
+        <* ( pManySpaces
+               >> pOneKeyword leftCurlyBrace
+               >> pManySpaces
+           )
   fields <-
-    pMany
+    many
       ( fmap CtFunction pFunction
           <|> fmap CtVariable pStateVariable
           <|> fmap CtComment pComment
       )
+      <* pOneKeyword rightCurlyBrace
 
-  _ <- pOne rightCurlyBrace id
   let fns = mapMaybe getCtFunction fields
   let vars = mapMaybe getCtVariable fields
   return
@@ -71,11 +69,14 @@ pStateVariable = do
   tp <- pManySpaces >> pType
   -- state variable only has visiblity specifier, we don't need to parse the modifiers
   specifier <- pManySpaces >> pVisibilitySpecifier
-  stateName <- pManySpaces >> pIdentifier
-  _ <-
+  stateName <-
     pManySpaces
-      >> pOne ";" id
-  comment <- pManySpaces >> pOpt pComment
+      >> pIdentifier
+        <* ( pManySpaces
+               >> pOneKeyword ";"
+           )
+
+  comment <- pManySpaces >> optional pComment
   return
     ( StateVariable
         { svVisibleSpecifier = specifier,
