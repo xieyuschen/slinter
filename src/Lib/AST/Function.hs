@@ -27,6 +27,7 @@ import Lib.AST.Model
     rightParenthesis,
   )
 import Lib.AST.Type (pType)
+import Lib.AST.Util
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -155,19 +156,3 @@ pFunctionDotAndArg =
         >> pType
     )
     (optional pIdentifier)
-
-pVisibilitySpecifier :: Parser VisibilitySpecifier
-pVisibilitySpecifier = do
-  ident <- pManySpaces >> pIdentifier
-  case toVisibilitySpecifier ident of
-    Just specifier -> return specifier
-    Nothing -> error "not a valid visible specifier"
-
-toVisibilitySpecifier :: String -> Maybe VisibilitySpecifier
-toVisibilitySpecifier str =
-  case str of
-    "public" -> return VsPublic
-    "private" -> return VsPrivate
-    "internal" -> return VsInternal
-    "external" -> return VsExternal
-    _ -> Nothing

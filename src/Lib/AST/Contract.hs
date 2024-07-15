@@ -8,7 +8,6 @@ import Lib.AST.Function
   ( getCtFunction,
     getCtVariable,
     pFunction,
-    pVisibilitySpecifier,
   )
 import Lib.AST.Model
   ( Contract (..),
@@ -18,7 +17,9 @@ import Lib.AST.Model
     leftCurlyBrace,
     rightCurlyBrace,
   )
+import Lib.AST.Stat (pStateVariable)
 import Lib.AST.Type (pType)
+import Lib.AST.Util (pVisibilitySpecifier)
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -61,27 +62,3 @@ pContract = do
         ctFunctions = fns,
         ctVariables = vars
       }
-
--- 'uint256 public count;' under the contract scope
--- todo: shall we call it pContractStateVariable? check it when we implement to parse the function body
-pStateVariable :: Parser StateVariable
-pStateVariable = do
-  tp <- pManySpaces >> pType
-  -- state variable only has visiblity specifier, we don't need to parse the modifiers
-  specifier <- pManySpaces >> pVisibilitySpecifier
-  stateName <-
-    pManySpaces
-      >> pIdentifier
-        <* ( pManySpaces
-               >> pOneKeyword ";"
-           )
-
-  comment <- pManySpaces >> optional pComment
-  return
-    ( StateVariable
-        { svVisibleSpecifier = specifier,
-          svType = tp,
-          svName = stateName,
-          svComment = comment
-        }
-    )

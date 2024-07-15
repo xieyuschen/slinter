@@ -31,6 +31,7 @@ library internallib
         Lib.AST.Type,
         Lib.AST.Expr,
         Lib.AST.Stat,
+        Lib.AST.Util,
         Lib.Parser
     hs-source-dirs: src
 

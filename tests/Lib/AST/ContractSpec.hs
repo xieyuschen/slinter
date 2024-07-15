@@ -2,18 +2,15 @@
 
 module Lib.AST.ContractSpec (spec) where
 
-import Control.Monad (forM_)
 import Lib.AST.Contract
 import Lib.AST.Function
 import Lib.AST.Model
 import Lib.Parser
-import Lib.TestCommon
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
 spec = do
   parseContractSpec
-  parseContractVariableSpec
 
 parseContractSpec :: Spec
 parseContractSpec = do
@@ -43,7 +40,8 @@ parseContractSpec = do
                 { svVisibleSpecifier = VsPublic,
                   svType = STypeUint 256,
                   svName = "count",
-                  svComment = Just " Function to get the current count "
+                  svComment = Just " Function to get the current count ",
+                  svVarExpr = Nothing
                 }
             ]
       result
@@ -55,32 +53,6 @@ parseContractSpec = do
             }
     it "get the correct state" $ do
       s `shouldBe` ""
-
-parseContractVariableSpec :: Spec
-parseContractVariableSpec = do
-  let testCases =
-        [ ( "uint256 public name;",
-            Right
-              StateVariable
-                { svVisibleSpecifier = VsPublic,
-                  svType = STypeUint 256,
-                  svName = "name",
-                  svComment = Nothing
-                },
-            ""
-          ),
-          ( "uint256 public name; // name refers to the contract name",
-            Right
-              StateVariable
-                { svVisibleSpecifier = VsPublic,
-                  svType = STypeUint 256,
-                  svName = "name",
-                  svComment = Just " name refers to the contract name"
-                },
-            ""
-          )
-        ]
-  forM_ testCases $ verifyParser "contract state variable" pStateVariable
 
 isCtSpec :: Spec
 isCtSpec = do
@@ -102,7 +74,8 @@ isCtSpec = do
               { svVisibleSpecifier = VsPublic,
                 svType = STypeBool,
                 svName = "",
-                svComment = Nothing -- attached comment
+                svComment = Nothing, -- attached comment
+                svVarExpr = Nothing
               }
         )
         `shouldBe` Nothing

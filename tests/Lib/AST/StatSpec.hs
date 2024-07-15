@@ -7,7 +7,59 @@ import Lib.TestCommon
 import Test.Hspec
 
 spec :: Spec
-spec = parseStatAssignSpec
+spec = do
+  parseStatAssignSpec
+  parseVarDefinitionSpec
+
+parseVarDefinitionSpec :: Spec
+parseVarDefinitionSpec = do
+  let testCases =
+        [ ( "uint256 public name;",
+            Right
+              StateVariable
+                { svVisibleSpecifier = VsPublic,
+                  svType = STypeUint 256,
+                  svName = "name",
+                  svComment = Nothing,
+                  svVarExpr = Nothing
+                },
+            ""
+          ),
+          ( "uint256 public name; // 123daws",
+            Right
+              StateVariable
+                { svVisibleSpecifier = VsPublic,
+                  svType = STypeUint 256,
+                  svName = "name",
+                  svComment = Just " 123daws",
+                  svVarExpr = Nothing
+                },
+            ""
+          ),
+          ( "uint256 public name = hello;",
+            Right
+              StateVariable
+                { svVisibleSpecifier = VsPublic,
+                  svType = STypeUint 256,
+                  svName = "name",
+                  svComment = Nothing,
+                  svVarExpr = Just (SExprVar "hello")
+                },
+            ""
+          ),
+          ( "fixed hello=2345;",
+            Right
+              StateVariable
+                { svVisibleSpecifier = VsInternal,
+                  svType = STypeFixed 128 18,
+                  svName = "hello",
+                  svComment = Nothing,
+                  svVarExpr = Just (SExprL (LNum 2345))
+                },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "var definition" pStateVariable
 
 parseStatAssignSpec :: Spec
 parseStatAssignSpec = do

@@ -143,7 +143,8 @@ data StateVariable = StateVariable
   { svVisibleSpecifier :: VisibilitySpecifier,
     svType :: SType,
     svName :: String,
-    svComment :: Maybe Comment -- attached comment
+    svComment :: Maybe Comment, -- attached comment
+    svVarExpr :: Maybe SExpr
   }
   deriving (Show, Eq)
 
@@ -263,5 +264,6 @@ data StAssign = StAssign
 
 data Stat
   = StatAssign StAssign
+  | StatVarDef StateVariable
   | StatIf -- todo
   deriving (Show, Eq)
