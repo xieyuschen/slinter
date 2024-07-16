@@ -1,10 +1,11 @@
 module Lib.AST.Expr where
 
-import Control.Applicative (Alternative ((<|>)))
+import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State
 import Data.Char (isSpace)
+import Data.Maybe (maybeToList)
 import Lib.AST.Model
 import Lib.Parser
 
@@ -20,6 +21,11 @@ pFactor =
     -- we decide to keep supporting the unary expression during parse stage,
     -- such as '123 + -x', where we will report error during syntax check
     <|> SExprU <$> pUnaryExpr
+    <|> SExprF <$> pTry pFuncCall
+    -- parse a function call first, if not parse it as a selection
+    <|> pTry pSelection
+    -- parse elem index after selection to solve a[x].y
+    <|> pTry pElemIndex
     <|> (SExprL <$> pLiteral)
     <|> (SExprVar <$> pIdentifier)
 
@@ -37,6 +43,23 @@ pParenthesizedExpr = do
             >> pExpression
               <* (pManySpaces >> pOneKeyword rightParenthesis)
         )
+
+pSelection :: Parser SExpr
+pSelection = do
+  base <-
+    pManySpaces
+      -- don't use pExpression, beacuse selection cases are limited
+      >> ( SExprF <$> pTry pFuncCall
+             <|> pTry pElemIndex
+             <|> SExprVar <$> pIdentifier
+         )
+
+  fields <- pMany1 $ pOneKeyword "." >> pIdentifier
+  return $
+    foldl
+      (\acc v -> SExprS $ ExprSelection {selectionBase = acc, selectionField = v})
+      base
+      fields
 
 pLiteral :: Parser Literal
 pLiteral =
@@ -139,7 +162,8 @@ pOperator = do
     "=" -> case s of
       _
         | isSecond s "=" -> put (drop 2 s) >> return LogicalEqual
-        | otherwise -> return Assign
+        -- expression shouldn't have assign operator
+        | otherwise -> throwError "unsupported operator"
     _ -> put s >> throwError "unsupported operator"
 
 pAddOp :: Parser Operator
@@ -162,3 +186,69 @@ pMulOp = do
     ArithmeticDivision -> return ArithmeticDivision
     _ -> do
       throwError "not * or /"
+
+pFuncCall :: Parser ExprFnCall
+pFuncCall = do
+  (ct, fName) <-
+    pManySpaces
+      >> liftA2
+        (,)
+        -- use pTry here to make sure the identifier and keyword are consumed in a batch
+        (optional $ pTry $ pIdentifier <* pOneKeyword ".")
+        pIdentifier
+  args <- pTry pFuncCallArgsNamedParameters <|> pTry pFuncCallArgsList
+  return
+    ExprFnCall
+      { fnContractName = ct,
+        fnName = fName,
+        fnArguments = args
+      }
+
+pFuncCallNamedParameterKeyValue :: Parser (String, SExpr)
+pFuncCallNamedParameterKeyValue =
+  liftA2
+    (,)
+    (pManySpaces >> pIdentifier <* (pManySpaces >> pOneKeyword ":"))
+    pExpression
+
+pFuncCallArgsNamedParameters :: Parser FnCallArgs
+pFuncCallArgsNamedParameters = do
+  arg1 <-
+    pManySpaces
+      >> pOneKeyword leftParenthesis
+      >> pManySpaces
+      >> pOneKeyword leftCurlyBrace
+      >> optional pFuncCallNamedParameterKeyValue
+  args <-
+    many
+      ( pManySpaces
+          >> pOneKeyword "," -- todo: this matching should be unified in a function in parser
+          >> pManySpaces
+          >> pTry pFuncCallNamedParameterKeyValue
+      )
+  _ <-
+    pOneKeyword rightCurlyBrace
+      >> pManySpaces
+      >> pOneKeyword rightParenthesis
+  return $ FnCallArgsNamedParameters $ maybeToList arg1 ++ args
+
+pFuncCallArgsList :: Parser FnCallArgs
+pFuncCallArgsList = do
+  arg1 <-
+    pManySpaces
+      >> pOneKeyword leftParenthesis
+      >> optional pExpression
+  args <-
+    many $
+      pManySpaces
+        >> pOneKeyword ","
+        >> pManySpaces
+        >> pExpression
+  _ <- pOneKeyword rightParenthesis
+  return $ FnCallArgsList $ maybeToList arg1 ++ args
+
+pElemIndex :: Parser SExpr
+pElemIndex = do
+  elem <- SExprVar <$> (pManySpaces >> pIdentifier)
+  idxs <- pMany1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
+  return $ foldl (\acc idx -> SExprI $ ExprIndex {elemBase = acc, elemIndex = idx}) elem idxs

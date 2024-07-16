@@ -208,6 +208,18 @@ data ExprFnCall = ExprFnCall
   }
   deriving (Show, Eq)
 
+data ExprSelection = ExprSelection
+  { selectionBase :: SExpr,
+    selectionField :: String
+  }
+  deriving (Show, Eq)
+
+data ExprIndex = ExprIndex
+  { elemBase :: SExpr,
+    elemIndex :: SExpr
+  }
+  deriving (Show, Eq)
+
 data SExpr
   = SExprB ExprBinary
   | SExprParentheses SExpr
@@ -215,6 +227,8 @@ data SExpr
   | SExprVar String -- String refers to the variable name
   | SExprL Literal
   | SExprF ExprFnCall
+  | SExprS ExprSelection
+  | SExprI ExprIndex
   deriving (Show, Eq)
 
 data Operator
@@ -239,5 +253,15 @@ data Operator
   | BitNeg -- ~
   | ShiftLeft -- <<
   | ShiftRight -- >>
-  | Assign -- =
+  deriving (Show, Eq)
+
+data StAssign = StAssign
+  { stAssignVarName :: String,
+    stAssignExpr :: SExpr
+  }
+  deriving (Show, Eq)
+
+data Stat
+  = StatAssign StAssign
+  | StatIf -- todo
   deriving (Show, Eq)

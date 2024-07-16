@@ -1,6 +1,6 @@
 module Main where
 
-import Lib.AST.Function
+import Lib.AST.Expr
 import Lib.AST.Type
 import Lib.Parser
 

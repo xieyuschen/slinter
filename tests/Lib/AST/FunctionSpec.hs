@@ -16,7 +16,6 @@ spec = do
   parseFunctionReturnsClauseSpec
   parseFunctionArgsSpec
   parseFunctionSignatureSpec
-  parseFuncCallSpec
 
 parseFunctionSignatureSpec :: Spec
 parseFunctionSignatureSpec = do
@@ -147,71 +146,3 @@ parseFunctionReturnsClauseSpec = do
       result `shouldBe` Right (STypeUint 256)
     it "should leave correct state" $ do
       s `shouldBe` "{"
-
-parseFuncCallSpec :: Spec
-parseFuncCallSpec = do
-  let testCases =
-        [ ( "set({value: 2, key: 3})",
-            Right $
-              ExprFnCall
-                { fnContractName = Nothing,
-                  fnName = "set",
-                  fnArguments = FnCallArgsNamedParameters [("value", SExprL (LNum 2)), ("key", SExprL (LNum 3))]
-                },
-            ""
-          ),
-          ( "example.set(2, 3)",
-            Right
-              ExprFnCall
-                { fnContractName = Just "example",
-                  fnName = "set",
-                  fnArguments = FnCallArgsList [SExprL (LNum 2), SExprL (LNum 3)]
-                },
-            ""
-          ),
-          ( "example.set({value: 2+1, key: -3})",
-            Right
-              ExprFnCall
-                { fnContractName = Just "example",
-                  fnName = "set",
-                  fnArguments =
-                    FnCallArgsNamedParameters
-                      [ ( "value",
-                          SExprB
-                            ExprBinary
-                              { leftOperand = SExprL (LNum 2),
-                                rightOperand = SExprL (LNum 1),
-                                bOperator = ArithmeticAddition
-                              }
-                        ),
-                        ( "key",
-                          SExprU
-                            ExprUnary
-                              { uOperator = Minus,
-                                uOperand = SExprL (LNum 3)
-                              }
-                        )
-                      ]
-                },
-            ""
-          ),
-          ( "set()",
-            Right $
-              ExprFnCall
-                { fnContractName = Nothing,
-                  fnName = "set",
-                  fnArguments = FnCallArgsList []
-                },
-            ""
-          ),
-          ( "set({})",
-            Right $
-              ExprFnCall
-                { fnContractName = Nothing,
-                  fnName = "set",
-                  fnArguments = FnCallArgsNamedParameters []
-                },
-            ""
-          )
-        ]
-  forM_ testCases $ verifyParser "function call" pFuncCall

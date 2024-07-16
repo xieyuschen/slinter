@@ -1,7 +1,7 @@
 module Lib.AST.ExprSpec (spec) where
 
 import Control.Monad (forM_)
-import Lib.AST.Expr (pExpression, pOperator)
+import Lib.AST.Expr (pElemIndex, pExpression, pFuncCall, pOperator, pSelection)
 import Lib.AST.Model
 import Lib.TestCommon
 import Test.Hspec
@@ -14,8 +14,70 @@ spec = do
   parseBitExpressionSpec
   parseComparisionExpressionSpec
   parseShiftExpressionSpec
-  parseAssignExpressionSpec
   parseUnaryExpressionSpec
+  parseSelectionExprSepc
+  parseFuncCallSpec
+  parsepElemIndexSpec
+
+parseSelectionExprSepc :: Spec
+parseSelectionExprSepc = do
+  -- some test caes has an invalid syntax but still could be parsed in AST
+  let testCases =
+        [ ( "a.b",
+            Right $
+              SExprS $
+                ExprSelection
+                  { selectionBase = SExprVar "a",
+                    selectionField = "b"
+                  },
+            ""
+          ),
+          ( "a.b.c",
+            Right $
+              SExprS $
+                ExprSelection
+                  { selectionBase =
+                      SExprS $
+                        ExprSelection
+                          { selectionBase = SExprVar "a",
+                            selectionField = "b"
+                          },
+                    selectionField = "c"
+                  },
+            ""
+          ),
+          ( "a().b",
+            Right $
+              SExprS $
+                ExprSelection
+                  { selectionBase =
+                      SExprF
+                        ExprFnCall
+                          { fnContractName = Nothing,
+                            fnName = "a",
+                            fnArguments = FnCallArgsList []
+                          },
+                    selectionField = "b"
+                  },
+            ""
+          ),
+          ( "ctc.a().b",
+            Right $
+              SExprS $
+                ExprSelection
+                  { selectionBase =
+                      SExprF
+                        ExprFnCall
+                          { fnContractName = Just "ctc",
+                            fnName = "a",
+                            fnArguments = FnCallArgsList []
+                          },
+                    selectionField = "b"
+                  },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "selection expression" pSelection
 
 parseUnaryExpressionSpec :: Spec
 parseUnaryExpressionSpec = do
@@ -171,23 +233,6 @@ parseUnaryExpressionSpec = do
           )
         ]
   forM_ testCases $ verifyParser "unary expression" pExpression
-
-parseAssignExpressionSpec :: Spec
-parseAssignExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
-  let testCases =
-        [ ( "1 = 2",
-            Right $
-              SExprB $
-                ExprBinary
-                  { leftOperand = SExprL $ LNum 1,
-                    rightOperand = SExprL $ LNum 2,
-                    bOperator = Assign
-                  },
-            ""
-          )
-        ]
-  forM_ testCases $ verifyParser "assign expression" pExpression
 
 parseShiftExpressionSpec :: Spec
 parseShiftExpressionSpec = do
@@ -754,13 +799,177 @@ parseOperatorSpec = do
           ( ">>",
             Right ShiftRight,
             ""
-          ),
-          ( "=",
-            Right Assign,
-            ""
           )
         ]
 
   forM_ testCases $ verifyParser "arithmetic expression" pOperator
   -- in this turn, we add some suffix after the operator to make sure the parse works well
   forM_ testCases $ verifyParser "arithmetic expression" pOperator . appendSuffix "1_suffix"
+
+parseFuncCallSpec :: Spec
+parseFuncCallSpec = do
+  let testCases =
+        [ ( "set({value: 2, key: 3})",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsNamedParameters [("value", SExprL (LNum 2)), ("key", SExprL (LNum 3))]
+                },
+            ""
+          ),
+          ( "example.set(2, 3)",
+            Right
+              ExprFnCall
+                { fnContractName = Just "example",
+                  fnName = "set",
+                  fnArguments = FnCallArgsList [SExprL (LNum 2), SExprL (LNum 3)]
+                },
+            ""
+          ),
+          ( "example.set({value: 2+1, key: -3})",
+            Right
+              ExprFnCall
+                { fnContractName = Just "example",
+                  fnName = "set",
+                  fnArguments =
+                    FnCallArgsNamedParameters
+                      [ ( "value",
+                          SExprB
+                            ExprBinary
+                              { leftOperand = SExprL (LNum 2),
+                                rightOperand = SExprL (LNum 1),
+                                bOperator = ArithmeticAddition
+                              }
+                        ),
+                        ( "key",
+                          SExprU
+                            ExprUnary
+                              { uOperator = Minus,
+                                uOperand = SExprL (LNum 3)
+                              }
+                        )
+                      ]
+                },
+            ""
+          ),
+          ( "set()",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsList []
+                },
+            ""
+          ),
+          ( "set({})",
+            Right $
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "set",
+                  fnArguments = FnCallArgsNamedParameters []
+                },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "function call" pFuncCall
+
+parsepElemIndexSpec :: Spec
+parsepElemIndexSpec = do
+  let testCases =
+        [ ( "m[1]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase = SExprVar "m",
+                      elemIndex = SExprL (LNum 1)
+                    }
+              ),
+            ""
+          ),
+          ( "m[1+1]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase = SExprVar "m",
+                      elemIndex =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprL (LNum 1),
+                              bOperator = ArithmeticAddition
+                            }
+                    }
+              ),
+            ""
+          ),
+          ( "m[1+x]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase = SExprVar "m",
+                      elemIndex =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand = SExprVar "x",
+                              bOperator = ArithmeticAddition
+                            }
+                    }
+              ),
+            ""
+          ),
+          ( "m[1+2*3]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase = SExprVar "m",
+                      elemIndex =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand =
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LNum 2),
+                                      rightOperand = SExprL (LNum 3),
+                                      bOperator = ArithmeticMultiplication
+                                    },
+                              bOperator = ArithmeticAddition
+                            }
+                    }
+              ),
+            ""
+          ),
+          ( "m[n[3]]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase = SExprVar "m",
+                      elemIndex =
+                        SExprI
+                          ExprIndex
+                            { elemBase = SExprVar "n",
+                              elemIndex = SExprL (LNum 3)
+                            }
+                    }
+              ),
+            ""
+          ),
+          ( "m[1][2]",
+            Right
+              ( SExprI
+                  ExprIndex
+                    { elemBase =
+                        SExprI
+                          ExprIndex
+                            { elemBase = SExprVar "m",
+                              elemIndex = SExprL (LNum 1)
+                            },
+                      elemIndex = SExprL (LNum 2)
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "index retrieveing" pElemIndex
