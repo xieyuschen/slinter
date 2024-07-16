@@ -9,11 +9,13 @@ import Control.Monad.State (MonadState (..))
 import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe, maybeToList)
 import Debug.Trace
 import GHC.Base ()
-import Lib.AST.Expr (pExpression)
+import Lib.AST.Expr (pExpression, pLocationModifer)
 import Lib.AST.Model
   ( ContractField (CtFunction, CtVariable),
+    DataLocation (Storage),
     ExprFnCall (..),
     FnCallArgs (..),
+    FnDeclArg (..),
     Function (..),
     SExpr,
     SType,
@@ -56,15 +58,25 @@ pModifier = do
     "view" -> return "view"
     _ -> error ""
 
--- todo: refine me to avoid case of usage
--- parse the content of 'bytes32 newName, bytes32 oldName' in the function below
--- function changeName(bytes32 newName, bytes32 oldName) public {
-pFunctionArgs :: Parser [(SType, Maybe String)]
+pFunctionArgs :: Parser [FnDeclArg]
 pFunctionArgs =
   liftA2
     (:)
-    (liftA2 (,) pType $ optional pIdentifier)
-    (many pFunctionDotAndArg)
+    com
+    (many $ pOneKeyword "," >> com)
+  where
+    com =
+      liftA3
+        ( \tp modifier name ->
+            FnDeclArg
+              { fnArgTp = tp,
+                fnArgName = name,
+                fnArgLocation = fromMaybe Storage modifier
+              }
+        )
+        pType
+        (optional $ pManySpaces >> pLocationModifer)
+        (optional $ pManySpaces >> pIdentifier)
 
 pFunctionReturnTypeWithQuote :: Parser SType
 pFunctionReturnTypeWithQuote =
@@ -85,7 +97,7 @@ pReturnsClause =
     >> pFunctionReturnTypeWithQuote <* pManySpaces
 
 -- parse the '(name: uint)' as so on. it will consume the following spaces
-pFunctionArgsQuoted :: Parser [(SType, Maybe String)]
+pFunctionArgsQuoted :: Parser [FnDeclArg]
 pFunctionArgsQuoted = do
   fmap (fromMaybe []) $
     pManySpaces
@@ -145,14 +157,3 @@ pFunction = do
           fmodifiers = modifiers
         }
     )
-
-pFunctionDotAndArg :: Parser (SType, Maybe String)
-pFunctionDotAndArg =
-  liftA2
-    (,)
-    ( pManySpaces
-        >> pOneKeyword ","
-        >> pManySpaces
-        >> pType
-    )
-    (optional pIdentifier)

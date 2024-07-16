@@ -1,7 +1,7 @@
 module Lib.AST.ExprSpec (spec) where
 
 import Control.Monad (forM_)
-import Lib.AST.Expr (pElemIndex, pExpression, pFuncCall, pOperator, pSelection)
+import Lib.AST.Expr
 import Lib.AST.Model
 import Lib.TestCommon
 import Test.Hspec
@@ -18,6 +18,104 @@ spec = do
   parseSelectionExprSepc
   parseFuncCallSpec
   parsepElemIndexSpec
+  parseLocationModifierSpec
+  parseTernaryExprSpec
+
+parseTernaryExprSpec :: Spec
+parseTernaryExprSpec = do
+  let testCases =
+        [ ( "true ? 1 : 0",
+            Right
+              ExprTernary
+                { ternaryCond = SExprL (LBool True),
+                  leftTernaryExpr = SExprL (LNum 1),
+                  rightTernaryExpr = SExprL (LNum 0)
+                },
+            ""
+          ),
+          ( "true ? 1*2 : 0",
+            Right
+              ExprTernary
+                { ternaryCond = SExprL (LBool True),
+                  leftTernaryExpr =
+                    SExprB
+                      ExprBinary
+                        { leftOperand = SExprL (LNum 1),
+                          rightOperand = SExprL (LNum 2),
+                          bOperator = ArithmeticMultiplication
+                        },
+                  rightTernaryExpr = SExprL (LNum 0)
+                },
+            ""
+          ),
+          ( "x&&y ? (1+4*5) : 0",
+            Right
+              ExprTernary
+                { ternaryCond =
+                    SExprB
+                      ExprBinary
+                        { leftOperand = SExprVar "x",
+                          rightOperand = SExprVar "y",
+                          bOperator = LogicalAnd
+                        },
+                  leftTernaryExpr =
+                    SExprParentheses
+                      ( SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LNum 1),
+                              rightOperand =
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprL (LNum 4),
+                                      rightOperand = SExprL (LNum 5),
+                                      bOperator = ArithmeticMultiplication
+                                    },
+                              bOperator = ArithmeticAddition
+                            }
+                      ),
+                  rightTernaryExpr = SExprL (LNum 0)
+                },
+            ""
+          ),
+          ( "true ? false ? 1 :2 : 0",
+            Right
+              ExprTernary
+                { ternaryCond = SExprL (LBool True),
+                  leftTernaryExpr =
+                    SExprT
+                      ExprTernary
+                        { ternaryCond = SExprL (LBool False),
+                          leftTernaryExpr = SExprL (LNum 1),
+                          rightTernaryExpr = SExprL (LNum 2)
+                        },
+                  rightTernaryExpr = SExprL (LNum 0)
+                },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "variable definition" pExprTenary
+
+parseLocationModifierSpec :: Spec
+parseLocationModifierSpec = do
+  let testCases =
+        [ ( "memory",
+            Right Memory,
+            ""
+          ),
+          ( "storage",
+            Right Storage,
+            ""
+          ),
+          ( "calldata",
+            Right Calldata,
+            ""
+          ),
+          ( "wrong",
+            Left "fail to find desired charactor: 'memory';fail to find desired charactor: 'storage';fail to find desired charactor: 'calldata';",
+            "wrong"
+          )
+        ]
+  forM_ testCases $ verifyParser "variable definition" pLocationModifer
 
 parseSelectionExprSepc :: Spec
 parseSelectionExprSepc = do
@@ -824,6 +922,15 @@ parseFuncCallSpec = do
                 { fnContractName = Just "example",
                   fnName = "set",
                   fnArguments = FnCallArgsList [SExprL (LNum 2), SExprL (LNum 3)]
+                },
+            ""
+          ),
+          ( "uint(2)", -- todo: should we seperate the type cast from function call?
+            Right
+              ExprFnCall
+                { fnContractName = Nothing,
+                  fnName = "uint",
+                  fnArguments = FnCallArgsList [SExprL (LNum 2)]
                 },
             ""
           ),

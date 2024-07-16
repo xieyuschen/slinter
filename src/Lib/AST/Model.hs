@@ -32,6 +32,9 @@ keywordCommentPrefix = "//"
 semicolon :: String
 semicolon = ";"
 
+colon :: String
+colon = ":"
+
 leftCurlyBrace :: String
 leftCurlyBrace = "{"
 
@@ -127,7 +130,7 @@ data Function = Function
   { fmodifiers :: [String],
     fVisiblitySpecifier :: VisibilitySpecifier,
     fname :: String,
-    fargs :: [(SType, Maybe String)],
+    fargs :: [FnDeclArg],
     fReturnTyp :: Maybe SType
   }
   deriving (Show, Eq)
@@ -139,6 +142,9 @@ data VisibilitySpecifier
   | VsExternal -- can only be called outside the contract
   deriving (Show, Eq)
 
+-- StateVariable is the state variable of a contract, which is stored in the blockchain
+-- please differ it from the StVarDefinition where it could be temporary one,
+-- and the storage place is determined by its keyword such as 'memory'
 data StateVariable = StateVariable
   { svVisibleSpecifier :: VisibilitySpecifier,
     svType :: SType,
@@ -193,6 +199,13 @@ data Literal
   | LString String
   deriving (Show, Eq)
 
+data FnDeclArg = FnDeclArg
+  { fnArgTp :: SType,
+    fnArgName :: Maybe String,
+    fnArgLocation :: DataLocation
+  }
+  deriving (Show, Eq)
+
 data FnCallArgs
   = FnCallArgsList [SExpr] -- refers to the normal function call
   -- refers to the 'named parameter' call
@@ -221,6 +234,13 @@ data ExprIndex = ExprIndex
   }
   deriving (Show, Eq)
 
+data ExprTernary = ExprTernary
+  { ternaryCond :: SExpr,
+    leftTernaryExpr :: SExpr,
+    rightTernaryExpr :: SExpr
+  }
+  deriving (Show, Eq)
+
 data SExpr
   = SExprB ExprBinary
   | SExprParentheses SExpr
@@ -230,6 +250,7 @@ data SExpr
   | SExprF ExprFnCall
   | SExprS ExprSelection
   | SExprI ExprIndex
+  | SExprT ExprTernary
   deriving (Show, Eq)
 
 data Operator
@@ -262,8 +283,23 @@ data StAssign = StAssign
   }
   deriving (Show, Eq)
 
+-- https://docs.soliditylang.org/en/latest/types.html#data-location
+data DataLocation = Memory | Storage | Calldata
+  deriving (Show, Eq)
+
+-- StVarDefinition is the normal variable, and the st means 'stat'
+-- such as 'uint memory name = 1+2;'
+data StVarDefinition = StVarDefinition
+  { stVarType :: SType,
+    stVarName :: String,
+    stVarLocation :: DataLocation,
+    stVarExpr :: Maybe SExpr,
+    stVarComment :: Maybe Comment -- attached comment
+  }
+  deriving (Show, Eq)
+
 data Stat
   = StatAssign StAssign
-  | StatVarDef StateVariable
+  | StatVarDef StVarDefinition
   | StatIf -- todo
   deriving (Show, Eq)

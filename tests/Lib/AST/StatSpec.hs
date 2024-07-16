@@ -10,9 +10,42 @@ spec :: Spec
 spec = do
   parseStatAssignSpec
   parseVarDefinitionSpec
+  parseStateVarSpec
 
 parseVarDefinitionSpec :: Spec
 parseVarDefinitionSpec = do
+  let testCases =
+        [ ( "uint256 public name = hello;",
+            Left "fail to find desired charactor: ';';",
+            "name = hello;"
+          ),
+          ( "fixed hello=2345;",
+            Right
+              StVarDefinition
+                { stVarType = STypeFixed 128 18,
+                  stVarName = "hello",
+                  stVarLocation = Storage,
+                  stVarExpr = Just (SExprL (LNum 2345)),
+                  stVarComment = Nothing
+                },
+            ""
+          ),
+          ( "fixed memory hello=2345;",
+            Right
+              StVarDefinition
+                { stVarType = STypeFixed 128 18,
+                  stVarName = "hello",
+                  stVarLocation = Memory,
+                  stVarExpr = Just (SExprL (LNum 2345)),
+                  stVarComment = Nothing
+                },
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "variable definition" pStVarDefinition
+
+parseStateVarSpec :: Spec
+parseStateVarSpec = do
   let testCases =
         [ ( "uint256 public name;",
             Right
@@ -57,9 +90,13 @@ parseVarDefinitionSpec = do
                   svVarExpr = Just (SExprL (LNum 2345))
                 },
             ""
+          ),
+          ( "fixed memory hello=2345;",
+            Left "fail to find desired charactor: ';';", -- state variable rejects the memory modifier
+            "hello=2345;"
           )
         ]
-  forM_ testCases $ verifyParser "var definition" pStateVariable
+  forM_ testCases $ verifyParser "state variable definition" pStateVariable
 
 parseStatAssignSpec :: Spec
 parseStatAssignSpec = do

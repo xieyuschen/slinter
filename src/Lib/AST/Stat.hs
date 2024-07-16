@@ -1,7 +1,7 @@
 module Lib.AST.Stat where
 
-import Control.Applicative (Applicative (..), optional)
-import Data.Maybe (fromMaybe)
+import Control.Applicative (Alternative ((<|>)), Applicative (..), optional)
+import Data.Maybe (fromMaybe, isJust)
 import Lib.AST.Comment (pComment)
 import Lib.AST.Expr
 import Lib.AST.Model
@@ -17,6 +17,29 @@ pAssignStat =
     pExpression
     <* pOneKeyword semicolon
 
+pStVarDefinition :: Parser StVarDefinition
+pStVarDefinition = do
+  tp <- pType
+  mmemory <- optional pLocationModifer
+  name <- pManySpaces >> pIdentifier
+  expr <-
+    optional $
+      pManySpaces
+        >> pOneKeyword "="
+        >> pManySpaces
+        >> pExpression
+  _ <- pOneKeyword semicolon
+  c <- pManySpaces >> optional pComment
+  return
+    StVarDefinition
+      { stVarType = tp,
+        stVarName = name,
+        stVarExpr = expr,
+        stVarLocation = fromMaybe Storage mmemory,
+        stVarComment = c
+      }
+
+-- state varaible is stored in the chain storage, so it rejects the memory keyword
 pStateVariable :: Parser StateVariable
 pStateVariable = do
   tp <- pType

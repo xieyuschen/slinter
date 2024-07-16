@@ -1,11 +1,12 @@
 module Lib.AST.Expr where
 
-import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
+import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), liftA3, optional)
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State
 import Data.Char (isSpace)
 import Data.Maybe (maybeToList)
+import Debug.Trace
 import Lib.AST.Model
 import Lib.Parser
 
@@ -26,8 +27,9 @@ pFactor =
     <|> pTry pSelection
     -- parse elem index after selection to solve a[x].y
     <|> pTry pElemIndex
-    <|> (SExprL <$> pLiteral)
-    <|> (SExprVar <$> pIdentifier)
+    <|> SExprT <$> pTry pExprTenary
+    <|> SExprL <$> pLiteral
+    <|> SExprVar <$> pIdentifier
 
 pTerm :: Parser SExpr
 pTerm = do
@@ -252,3 +254,35 @@ pElemIndex = do
   elem <- SExprVar <$> (pManySpaces >> pIdentifier)
   idxs <- pMany1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
   return $ foldl (\acc idx -> SExprI $ ExprIndex {elemBase = acc, elemIndex = idx}) elem idxs
+
+pLocationModifer :: Parser DataLocation
+pLocationModifer =
+  pStringTo "memory" (const Memory)
+    <|> pStringTo "storage" (const Storage)
+    <|> pStringTo "calldata" (const Calldata)
+
+pExprTenary :: Parser ExprTernary
+pExprTenary = do
+  s <- get
+  let (cond, s') = break (== '?') s -- break the expression first to parse them one by one
+  guard $ s' /= ""
+  put cond
+  cond <-
+    pManySpaces
+      >> pExpression
+        <* pManySpaces
+  leftS <- get
+  guard $ leftS == ""
+  put s' >> pManySpaces >> pOneKeyword "?"
+
+  left <-
+    pManySpaces
+      >> pExpression
+        <* (pManySpaces >> pOneKeyword colon)
+  right <- pManySpaces >> pExpression
+  return
+    ExprTernary
+      { ternaryCond = cond,
+        leftTernaryExpr = left,
+        rightTernaryExpr = right
+      }

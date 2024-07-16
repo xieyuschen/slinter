@@ -14,7 +14,6 @@ spec = do
   parseFunctionQuotedArgs
   parseFunctionModifiers
   parseFunctionReturnsClauseSpec
-  parseFunctionArgsSpec
   parseFunctionSignatureSpec
 
 parseFunctionSignatureSpec :: Spec
@@ -24,7 +23,13 @@ parseFunctionSignatureSpec = do
             Right
               Function
                 { fReturnTyp = Nothing,
-                  fargs = [(STypeString, Just "name")],
+                  fargs =
+                    [ FnDeclArg
+                        { fnArgTp = STypeString,
+                          fnArgName = Just "name",
+                          fnArgLocation = Storage
+                        }
+                    ],
                   fVisiblitySpecifier = VsPublic,
                   fmodifiers = ["pure"],
                   fname = "inc"
@@ -35,7 +40,13 @@ parseFunctionSignatureSpec = do
             Right
               Function
                 { fReturnTyp = Nothing,
-                  fargs = [(STypeString, Nothing)],
+                  fargs =
+                    [ FnDeclArg
+                        { fnArgTp = STypeString,
+                          fnArgName = Nothing,
+                          fnArgLocation = Storage
+                        }
+                    ],
                   fVisiblitySpecifier = VsPublic,
                   fmodifiers = ["pure"],
                   fname = "inc"
@@ -47,8 +58,38 @@ parseFunctionSignatureSpec = do
               Function
                 { fReturnTyp = Just $ STypeUint 256,
                   fargs =
-                    [ (STypeString, Just "name"),
-                      (STypeUint 256, Just "new_name")
+                    [ FnDeclArg
+                        { fnArgTp = STypeString,
+                          fnArgName = Just "name",
+                          fnArgLocation = Storage
+                        },
+                      FnDeclArg
+                        { fnArgTp = STypeUint 256,
+                          fnArgName = Just "new_name",
+                          fnArgLocation = Storage
+                        }
+                    ],
+                  fVisiblitySpecifier = VsInternal,
+                  fmodifiers = ["views"],
+                  fname = "inc"
+                },
+            ""
+          ),
+          ( "function inc(string memory name, uint256 calldata new_name) internal views returns (uint256) { count += 1; }",
+            Right
+              Function
+                { fReturnTyp = Just $ STypeUint 256,
+                  fargs =
+                    [ FnDeclArg
+                        { fnArgTp = STypeString,
+                          fnArgName = Just "name",
+                          fnArgLocation = Memory
+                        },
+                      FnDeclArg
+                        { fnArgTp = STypeUint 256,
+                          fnArgName = Just "new_name",
+                          fnArgLocation = Calldata
+                        }
                     ],
                   fVisiblitySpecifier = VsInternal,
                   fmodifiers = ["views"],
@@ -74,20 +115,6 @@ parseFunctionSignatureSpec = do
         ]
   forM_ testCases $ verifyParser "function" pFunction
 
-parseFunctionArgsSpec :: Spec
-parseFunctionArgsSpec = do
-  let testCases =
-        [ ("uint256 name", Right [(STypeUint 256, Just "name")], ""),
-          ( "uint256 name, string new_name",
-            Right
-              [ (STypeUint 256, Just "name"),
-                (STypeString, Just "new_name")
-              ],
-            ""
-          )
-        ]
-  forM_ testCases $ verifyParser "parse function args" pFunctionArgs
-
 parseFunctionQuotedArgs :: Spec
 parseFunctionQuotedArgs = do
   let testCases =
@@ -100,14 +127,67 @@ parseFunctionQuotedArgs = do
             ""
           ),
           ( " ( uint256 name) ",
-            Right [(STypeUint 256, Just "name")],
+            Right
+              [ FnDeclArg
+                  { fnArgTp = STypeUint 256,
+                    fnArgName = Just "name",
+                    fnArgLocation = Storage
+                  }
+              ],
+            ""
+          ),
+          ( "(uint256 name, string new_name)",
+            Right
+              [ FnDeclArg
+                  { fnArgTp = STypeUint 256,
+                    fnArgName = Just "name",
+                    fnArgLocation = Storage
+                  },
+                FnDeclArg
+                  { fnArgTp = STypeString,
+                    fnArgName = Just "new_name",
+                    fnArgLocation = Storage
+                  }
+              ],
+            ""
+          ),
+          ( "(uint256 memory name, string calldata new_name, string)",
+            Right
+              [ FnDeclArg
+                  { fnArgTp = STypeUint 256,
+                    fnArgName = Just "name",
+                    fnArgLocation = Memory
+                  },
+                FnDeclArg
+                  { fnArgTp = STypeString,
+                    fnArgName = Just "new_name",
+                    fnArgLocation = Calldata
+                  },
+                FnDeclArg
+                  { fnArgTp = STypeString,
+                    fnArgName = Nothing,
+                    fnArgLocation = Storage
+                  }
+              ],
             ""
           ),
           ( " ( uint256 name, string old_name, fixed256x16) ",
             Right
-              [ (STypeUint 256, Just "name"),
-                (STypeString, Just "old_name"),
-                (STypeFixed 256 16, Nothing)
+              [ FnDeclArg
+                  { fnArgTp = STypeUint 256,
+                    fnArgName = Just "name",
+                    fnArgLocation = Storage
+                  },
+                FnDeclArg
+                  { fnArgTp = STypeString,
+                    fnArgName = Just "old_name",
+                    fnArgLocation = Storage
+                  },
+                FnDeclArg
+                  { fnArgTp = STypeFixed 256 16,
+                    fnArgName = Nothing,
+                    fnArgLocation = Storage
+                  }
               ],
             ""
           )
