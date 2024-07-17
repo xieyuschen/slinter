@@ -18,8 +18,6 @@ import Lib.AST.Model
     rightCurlyBrace,
   )
 import Lib.AST.Stat (pStateVariable)
-import Lib.AST.Type (pType)
-import Lib.AST.Util (pVisibilitySpecifier)
 import Lib.Parser
   ( Parser,
     pIdentifier,

@@ -10,7 +10,6 @@ spec :: Spec
 spec = do
   parseLogcicalExpressionSpec
   parseArithemeticExpressionSpec
-  parseOperatorSpec
   parseBitExpressionSpec
   parseComparisionExpressionSpec
   parseShiftExpressionSpec
@@ -520,19 +519,19 @@ parseBitExpressionSpec = do
                   },
             ""
           ),
-          ( "1&2~3",
+          ( "1&2~3", -- negation takes a higher precedence
             Right
               ( SExprB
                   ExprBinary
-                    { leftOperand =
+                    { leftOperand = SExprL (LNum 1),
+                      rightOperand =
                         SExprB
                           ExprBinary
-                            { leftOperand = SExprL (LNum 1),
-                              rightOperand = SExprL (LNum 2),
-                              bOperator = BitAnd
+                            { leftOperand = SExprL (LNum 2),
+                              rightOperand = SExprL (LNum 3),
+                              bOperator = BitNeg
                             },
-                      rightOperand = SExprL (LNum 3),
-                      bOperator = BitNeg
+                      bOperator = BitAnd
                     }
               ),
             ""
@@ -708,20 +707,20 @@ parseLogcicalExpressionSpec = do
                   },
             ""
           ),
-          ( -- this is an invalid case, but we used it to test the parser
+          ( -- '!=' takes a higher precedence, and then is the '||'
             "123 || false != arg1",
             Right
               ( SExprB
                   ExprBinary
-                    { leftOperand =
+                    { leftOperand = SExprL (LNum 123),
+                      rightOperand =
                         SExprB
                           ExprBinary
-                            { leftOperand = SExprL (LNum 123),
-                              rightOperand = SExprL (LBool False),
-                              bOperator = LogicalOr
+                            { leftOperand = SExprL (LBool False),
+                              rightOperand = SExprVar "arg1",
+                              bOperator = LogicalInequal
                             },
-                      rightOperand = SExprVar "arg1",
-                      bOperator = LogicalInequal
+                      bOperator = LogicalOr
                     }
               ),
             ""
@@ -798,159 +797,6 @@ parseLogcicalExpressionSpec = do
           )
         ]
   forM_ testCases $ verifyParser "logical expression" pExpression
-
-parseOperatorSpec :: Spec
-parseOperatorSpec = do
-  let testCases =
-        [ ( "&&",
-            Right LogicalAnd,
-            ""
-          ),
-          ( "||",
-            Right LogicalOr,
-            ""
-          ),
-          ( "!=",
-            Right LogicalInequal,
-            ""
-          ),
-          ( "==",
-            Right LogicalEqual,
-            ""
-          ),
-          ( "!",
-            Right LogicalNegation,
-            ""
-          ),
-          ( "+-",
-            Right ArithmeticAddition,
-            "-"
-          ),
-          ( "+",
-            Right ArithmeticAddition,
-            ""
-          ),
-          ( "-",
-            Right Minus,
-            ""
-          ),
-          ( "*",
-            Right ArithmeticMultiplication,
-            ""
-          ),
-          ( "/",
-            Right ArithmeticDivision,
-            ""
-          ),
-          ( "%",
-            Right ArithmeticModulus,
-            ""
-          ),
-          ( "**",
-            Right ArithmeticExp,
-            ""
-          ),
-          ( "<=",
-            Right ComparisionLessEqual,
-            ""
-          ),
-          ( "<",
-            Right ComparisionLess,
-            ""
-          ),
-          ( ">=",
-            Right ComparisionMoreEqual,
-            ""
-          ),
-          ( ">=",
-            Right ComparisionMoreEqual,
-            ""
-          ),
-          ( ">",
-            Right ComparisionMore,
-            ""
-          ),
-          ( ">",
-            Right ComparisionMore,
-            ""
-          ),
-          ( "&",
-            Right BitAnd,
-            ""
-          ),
-          ( "|",
-            Right BitOr,
-            ""
-          ),
-          ( "^",
-            Right BitExor,
-            ""
-          ),
-          ( "~",
-            Right BitNeg,
-            ""
-          ),
-          ( "<<",
-            Right ShiftLeft,
-            ""
-          ),
-          ( ">>",
-            Right ShiftRight,
-            ""
-          ),
-          ( "+=",
-            Right CompoundAddition,
-            ""
-          ),
-          ( "-=",
-            Right CompoundMinus,
-            ""
-          ),
-          ( "*=",
-            Right CompoundMultiply,
-            ""
-          ),
-          ( "/=",
-            Right CompoundDevision,
-            ""
-          ),
-          ( "%=",
-            Right CompoundModulus,
-            ""
-          ),
-          ( "&=",
-            Right CompoundAnd,
-            ""
-          ),
-          ( "|=",
-            Right CompoundOr,
-            ""
-          ),
-          ( "^=",
-            Right CompoundExor,
-            ""
-          ),
-          ( "<<=",
-            Right CompoundLeftShift,
-            ""
-          ),
-          ( ">>=",
-            Right CompoundRightShift,
-            ""
-          ),
-          ( "++",
-            Right Increment,
-            ""
-          ),
-          ( "--",
-            Right Decrement,
-            ""
-          )
-        ]
-
-  forM_ testCases $ verifyParser "arithmetic expression" pOperator
-  -- in this turn, we add some suffix after the operator to make sure the parse works well
-  forM_ testCases $ verifyParser "arithmetic expression" pOperator . appendSuffix "1_suffix"
 
 parseFuncCallSpec :: Spec
 parseFuncCallSpec = do

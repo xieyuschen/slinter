@@ -19,8 +19,7 @@ common common-depends
         transformers,
         text,
         bytestring,
-        hspec,
-        lens
+        hspec
 
 library internallib
     import: common-depends
@@ -33,6 +32,7 @@ library internallib
         Lib.AST.Expr,
         Lib.AST.Stat,
         Lib.AST.Util,
+        Lib.AST.Oper,
         Lib.Parser
     hs-source-dirs: src
 
@@ -65,6 +65,7 @@ test-suite tests
        Lib.AST.ExprSpec,
        Lib.AST.StatSpec,
        Lib.ParserSpec,
+       Lib.AST.OperSpec,
        Lib.TestCommon,
     build-tool-depends: hspec-discover:hspec-discover == 2.*
     ghc-options:    -fforce-recomp -Wall -Werror

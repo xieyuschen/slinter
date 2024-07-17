@@ -1,24 +1,50 @@
 module Lib.AST.Expr where
 
-import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), liftA3, optional)
-import Control.Lens
+import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State
 import Data.Char (isSpace)
 import Data.Maybe (fromMaybe, maybeToList)
-import Debug.Trace
 import Lib.AST.Model
+import Lib.AST.Oper
 import Lib.Parser
 
-pExpression :: Parser SExpr
-pExpression = do
-  left <- pTerm
-  rest <- many (pManySpaces >> ((,) <$> pTry pAddOp <*> pTerm))
-  return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
+ops =
+  reverse
+    [ opRank2,
+      opRank3,
+      opRank4,
+      opRank5,
+      opRank6,
+      opRank7,
+      opRank8,
+      opRank9,
+      opRank10,
+      opRank11,
+      opRank12,
+      opRank13
+    ]
 
-pFactor :: Parser SExpr
-pFactor =
+pExpression :: Parser SExpr
+pExpression =
+  foldr
+    ( \pOp pExpr -> do
+        left <- pExpr
+        rest <- many (pManySpaces >> ((,) <$> pTry pOp <*> pExpr))
+        return $
+          foldl
+            ( \acc (op, right) ->
+                SExprB $ ExprBinary acc right op
+            )
+            left
+            rest
+    )
+    pBasicExpr
+    (pOpRankLast (concat ops) : fmap pOpRank ops)
+
+pBasicExpr :: Parser SExpr
+pBasicExpr =
   pParenthesizedExpr
     -- we decide to keep supporting the unary expression during parse stage,
     -- such as '123 + -x', where we will report error during syntax check
@@ -31,12 +57,6 @@ pFactor =
     <|> SExprT <$> pTry pExprTenary
     <|> SExprL <$> pLiteral
     <|> SExprVar <$> pIdentifier
-
-pTerm :: Parser SExpr
-pTerm = do
-  left <- pFactor
-  rest <- many (pManySpaces >> ((,) <$> pTry pMulOp <*> pFactor))
-  return $ foldl (\acc (op, right) -> SExprB $ ExprBinary acc right op) left rest
 
 pParenthesizedExpr :: Parser SExpr
 pParenthesizedExpr = do
@@ -71,17 +91,6 @@ pLiteral =
     <|> LBool <$> pBool
     <|> LString <$> pString
 
-isOperatorEnd :: String -> Bool
-isOperatorEnd s = (length s == 1) || isSpace (last $ take 2 s)
-
--- isFollowed check whether the want string is the second charactor of s
--- it requires the string at least has 2 charactor otherwise it throws an exception
-isSecond :: String -> String -> Bool
-isSecond s want = maybe False (== head want) (s ^? element 1)
-
-isTriple :: String -> String -> Bool
-isTriple s want = maybe False (== head want) (s ^? element 2)
-
 isUnaryOp :: Operator -> Bool
 isUnaryOp Minus = True
 isUnaryOp _ = False
@@ -101,91 +110,6 @@ pUnaryExpr = do
       { uOperand = operand,
         uOperator = op
       }
-
-pOperator3Char :: Parser Operator
-pOperator3Char = do
-  s <- get
-  guard $ length s >= 3 -- at least 3 characters
-  put $ drop 3 s
-  case take 3 s of
-    ">>=" -> return CompoundRightShift
-    "<<=" -> return CompoundLeftShift
-    _ -> throwError "unsupported operator in three characters"
-
-pOperator2Char :: Parser Operator
-pOperator2Char = do
-  s <- get
-  guard $ length s >= 2 -- at least 2 characters
-  put $ drop 2 s
-  case take 2 s of
-    "+=" -> return CompoundAddition
-    "++" -> return Increment
-    "-=" -> return CompoundMinus
-    "--" -> return Decrement
-    "**" -> return ArithmeticExp
-    "*=" -> return CompoundMultiply
-    "/=" -> return CompoundDevision
-    "%=" -> return CompoundModulus
-    "!=" -> return LogicalInequal
-    "&&" -> return LogicalAnd
-    "&=" -> return CompoundAnd
-    "||" -> return LogicalOr
-    "|=" -> return CompoundOr
-    "^=" -> return CompoundExor
-    "<=" -> return ComparisionLessEqual
-    "<<" -> return ShiftLeft
-    ">=" -> return ComparisionMoreEqual
-    ">>" -> return ShiftRight
-    "==" -> return LogicalEqual
-    _ -> throwError "unsupport operator in two characters"
-
-pOperator1Char :: Parser Operator
-pOperator1Char = do
-  s <- get
-  guard $ not $ null s -- check whether the string has enough chars to consume
-  put $ drop 1 s
-  case take 1 s of
-    "+" -> return ArithmeticAddition
-    "-" -> return Minus
-    "/" -> return ArithmeticDivision
-    "*" -> return ArithmeticMultiplication
-    "%" -> return ArithmeticModulus
-    "!" -> return LogicalNegation
-    "^" -> return BitExor
-    "~" -> return BitNeg
-    "&" -> return BitAnd
-    "|" -> return BitOr
-    "<" -> return ComparisionLess
-    ">" -> return ComparisionMore
-    _ -> throwError "unsupport operator in one character"
-
-pOperator :: Parser Operator
-pOperator = do
-  pManySpaces
-    >> pTry pOperator3Char
-      <|> pTry pOperator2Char
-      <|> pTry pOperator1Char
-
-pAddOp :: Parser Operator
-pAddOp = do
-  op <- pManySpaces >> pOperator
-  case op of
-    ArithmeticMultiplication -> do
-      throwError "shouldn't use * here"
-    ArithmeticDivision -> do
-      throwError "shouldn't use / here"
-    _ -> do
-      -- for now, we only support precedence between */ and +-
-      return op
-
-pMulOp :: Parser Operator
-pMulOp = do
-  op <- pManySpaces >> pOperator
-  case op of
-    ArithmeticMultiplication -> return ArithmeticMultiplication
-    ArithmeticDivision -> return ArithmeticDivision
-    _ -> do
-      throwError "not * or /"
 
 pFuncCall :: Parser ExprFnCall
 pFuncCall = do

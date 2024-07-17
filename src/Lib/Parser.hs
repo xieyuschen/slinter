@@ -45,7 +45,7 @@ pTry p = ExceptT $ state $ \s -> do
   let (result, s') = runParser p s
   case result of
     -- we cut the error message as well, because sometimes we use <|> to append computations
-    Left msg -> first Left ("", s)
+    Left _ -> first Left ("", s)
     Right r -> first Right (r, s')
 
 -- pass the type you want to pass, so use a instead of [a]
