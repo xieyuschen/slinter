@@ -897,6 +897,54 @@ parseOperatorSpec = do
           ( ">>",
             Right ShiftRight,
             ""
+          ),
+          ( "+=",
+            Right CompoundAddition,
+            ""
+          ),
+          ( "-=",
+            Right CompoundMinus,
+            ""
+          ),
+          ( "*=",
+            Right CompoundMultiply,
+            ""
+          ),
+          ( "/=",
+            Right CompoundDevision,
+            ""
+          ),
+          ( "%=",
+            Right CompoundModulus,
+            ""
+          ),
+          ( "&=",
+            Right CompoundAnd,
+            ""
+          ),
+          ( "|=",
+            Right CompoundOr,
+            ""
+          ),
+          ( "^=",
+            Right CompoundExor,
+            ""
+          ),
+          ( "<<=",
+            Right CompoundLeftShift,
+            ""
+          ),
+          ( ">>=",
+            Right CompoundRightShift,
+            ""
+          ),
+          ( "++",
+            Right Increment,
+            ""
+          ),
+          ( "--",
+            Right Decrement,
+            ""
           )
         ]
 

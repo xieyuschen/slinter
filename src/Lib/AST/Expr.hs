@@ -1,11 +1,12 @@
 module Lib.AST.Expr where
 
 import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), liftA3, optional)
+import Control.Lens
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State
 import Data.Char (isSpace)
-import Data.Maybe (maybeToList)
+import Data.Maybe (fromMaybe, maybeToList)
 import Debug.Trace
 import Lib.AST.Model
 import Lib.Parser
@@ -76,7 +77,10 @@ isOperatorEnd s = (length s == 1) || isSpace (last $ take 2 s)
 -- isFollowed check whether the want string is the second charactor of s
 -- it requires the string at least has 2 charactor otherwise it throws an exception
 isSecond :: String -> String -> Bool
-isSecond s want = tail (take 2 s) == want
+isSecond s want = maybe False (== head want) (s ^? element 1)
+
+isTriple :: String -> String -> Bool
+isTriple s want = maybe False (== head want) (s ^? element 2)
 
 isUnaryOp :: Operator -> Bool
 isUnaryOp Minus = True
@@ -98,75 +102,69 @@ pUnaryExpr = do
         uOperator = op
       }
 
-pOperator :: Parser Operator
-pOperator = do
-  s <- pManySpaces >> get
+pOperator3Char :: Parser Operator
+pOperator3Char = do
+  s <- get
+  guard $ length s >= 3 -- at least 3 characters
+  put $ drop 3 s
+  case take 3 s of
+    ">>=" -> return CompoundRightShift
+    "<<=" -> return CompoundLeftShift
+    _ -> throwError "unsupported operator in three characters"
+
+pOperator2Char :: Parser Operator
+pOperator2Char = do
+  s <- get
+  guard $ length s >= 2 -- at least 2 characters
+  put $ drop 2 s
+  case take 2 s of
+    "+=" -> return CompoundAddition
+    "++" -> return Increment
+    "-=" -> return CompoundMinus
+    "--" -> return Decrement
+    "**" -> return ArithmeticExp
+    "*=" -> return CompoundMultiply
+    "/=" -> return CompoundDevision
+    "%=" -> return CompoundModulus
+    "!=" -> return LogicalInequal
+    "&&" -> return LogicalAnd
+    "&=" -> return CompoundAnd
+    "||" -> return LogicalOr
+    "|=" -> return CompoundOr
+    "^=" -> return CompoundExor
+    "<=" -> return ComparisionLessEqual
+    "<<" -> return ShiftLeft
+    ">=" -> return ComparisionMoreEqual
+    ">>" -> return ShiftRight
+    "==" -> return LogicalEqual
+    _ -> throwError "unsupport operator in two characters"
+
+pOperator1Char :: Parser Operator
+pOperator1Char = do
+  s <- get
   guard $ not $ null s -- check whether the string has enough chars to consume
   put $ drop 1 s
   case take 1 s of
-    -- todo: the '+' in '+-' will be consumed, check whether we need to support it further
     "+" -> return ArithmeticAddition
     "-" -> return Minus
-    "*" -> case s of
-      -- we need this branch to ensure the length of s for the following matching,
-      -- so we cannot move this logic into otherwise
-      _
-        | isOperatorEnd s -> return ArithmeticMultiplication
-        | isSecond s "*" ->
-            put (drop 2 s)
-              >> return ArithmeticExp
-        | otherwise -> return ArithmeticMultiplication
     "/" -> return ArithmeticDivision
+    "*" -> return ArithmeticMultiplication
     "%" -> return ArithmeticModulus
-    "!" -> case s of
-      _
-        | isOperatorEnd s -> return LogicalNegation
-        | isSecond s "=" ->
-            put (drop 2 s)
-              >> return LogicalInequal
-        | otherwise -> return LogicalNegation
+    "!" -> return LogicalNegation
     "^" -> return BitExor
     "~" -> return BitNeg
-    "&" -> case s of
-      _
-        | isOperatorEnd s -> return BitAnd
-        | isSecond s "&" ->
-            put (drop 2 s)
-              >> return LogicalAnd
-        | otherwise -> return BitAnd
-    "|" -> case s of
-      _
-        | isOperatorEnd s -> return BitOr
-        | isSecond s "|" ->
-            put (drop 2 s)
-              >> return LogicalOr
-        | otherwise -> return BitOr
-    "<" -> case s of
-      _
-        | isOperatorEnd s -> return ComparisionLess
-        | isSecond s "=" ->
-            put (drop 2 s)
-              >> return ComparisionLessEqual
-        | isSecond s "<" ->
-            put (drop 2 s)
-              >> return ShiftLeft
-        | otherwise -> return ComparisionLess
-    ">" -> case s of
-      _
-        | isOperatorEnd s -> return ComparisionMore
-        | isSecond s "=" ->
-            put (drop 2 s)
-              >> return ComparisionMoreEqual
-        | isSecond s ">" ->
-            put (drop 2 s)
-              >> return ShiftRight
-        | otherwise -> return ComparisionMore
-    "=" -> case s of
-      _
-        | isSecond s "=" -> put (drop 2 s) >> return LogicalEqual
-        -- expression shouldn't have assign operator
-        | otherwise -> throwError "unsupported operator"
-    _ -> put s >> throwError "unsupported operator"
+    "&" -> return BitAnd
+    "|" -> return BitOr
+    "<" -> return ComparisionLess
+    ">" -> return ComparisionMore
+    _ -> throwError "unsupport operator in one character"
+
+pOperator :: Parser Operator
+pOperator = do
+  pManySpaces
+    >> pTry pOperator3Char
+      <|> pTry pOperator2Char
+      <|> pTry pOperator1Char
 
 pAddOp :: Parser Operator
 pAddOp = do

@@ -19,7 +19,8 @@ common common-depends
         transformers,
         text,
         bytestring,
-        hspec
+        hspec,
+        lens
 
 library internallib
     import: common-depends

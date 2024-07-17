@@ -275,6 +275,18 @@ data Operator
   | BitNeg -- ~
   | ShiftLeft -- <<
   | ShiftRight -- >>
+  | CompoundAddition -- +=
+  | CompoundMinus -- -=
+  | CompoundMultiply -- '*='
+  | CompoundDevision -- /=
+  | CompoundModulus -- %=
+  | CompoundAnd -- '&='
+  | CompoundOr -- '|='
+  | CompoundExor -- '^='
+  | CompoundLeftShift -- <<=
+  | CompoundRightShift -- >>=
+  | Increment -- ++
+  | Decrement -- --
   deriving (Show, Eq)
 
 data StAssign = StAssign
