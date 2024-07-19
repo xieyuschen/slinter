@@ -1,0 +1,3 @@
+- arguments: [-XCPP, --cpp-ansi, --cpp-include=include]
+- fixity: "infixr 9 ..."
+- fixity: "infixl 1 &~"

@@ -304,7 +304,7 @@ pCustom :: (Text, Maybe BitLengthDesc) -> Parser SType
 pCustom (s, _) = do
   -- built-in type should be supported already inside the
   guard $ s `notElem` ["int", "uint", "fixed", "ufixed", "bytes"]
-  return $ STypeCustom $ s
+  return $ STypeCustom s
 
 pTypeSimple :: Parser SType
 pTypeSimple =
