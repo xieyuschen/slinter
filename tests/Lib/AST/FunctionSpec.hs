@@ -1,12 +1,28 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Lib.AST.FunctionSpec (spec) where
 
-import Control.Monad
+import Control.Monad (forM_)
 import Lib.AST.Function
+  ( pFunction,
+    pFunctionArgsQuoted,
+    pFunctionDecorators,
+    pReturnsClause,
+  )
 import Lib.AST.Model
-import Lib.Parser
-import Lib.TestCommon
+  ( DataLocation (Calldata, Memory, Storage),
+    FnDeclArg (FnDeclArg, fnArgLocation, fnArgName, fnArgTp),
+    Function
+      ( Function,
+        fReturnTyp,
+        fVisiblitySpecifier,
+        fargs,
+        fmodifiers,
+        fname
+      ),
+    SType (STypeFixed, STypeString, STypeUint),
+    VisibilitySpecifier (VsExternal, VsInternal, VsPublic),
+  )
+import Lib.Parser (runParser)
+import Lib.TestCommon (verifyParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec

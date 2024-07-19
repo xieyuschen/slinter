@@ -1,12 +1,42 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Lib.AST.TypeSpec where
 
 import Control.Monad (forM_)
 import Lib.AST.Model
+  ( ArrayN (ArrayN, aElemType, aSize),
+    BitLengthDesc (BitLength, BitLengthWithDecimal),
+    ExprBinary (ExprBinary, bOperator, leftOperand, rightOperand),
+    Literal (LNum),
+    Mapping (Mapping, mKeyType, mValueType),
+    Operator (ArithmeticExp),
+    SAlias (SAlias, salias, saliasOriginType),
+    SExpr (SExprB, SExprL, SExprVar),
+    SType
+      ( STypeAddress,
+        STypeAlias,
+        STypeArray,
+        STypeBytes,
+        STypeCustom,
+        STypeFixed,
+        STypeInt,
+        STypeMapping,
+        STypePayableAddress,
+        STypeStructure,
+        STypeUFixed,
+        STypeUint
+      ),
+    STypeEnum (STypeEnum, eelems, ename),
+    Structure (Structure, structFields, structName),
+  )
 import Lib.AST.Type
-import Lib.TestCommon
-import Test.Hspec
+  ( pType,
+    pTypeAlias,
+    pTypeDefinition,
+    pTypeEnum,
+    pTypeStruct,
+    pTypeWithDesc,
+  )
+import Lib.TestCommon (verifyParser)
+import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do

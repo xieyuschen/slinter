@@ -1,11 +1,30 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Lib.AST.ContractSpec (spec) where
 
-import Lib.AST.Contract
-import Lib.AST.Function
+import Lib.AST.Contract (pContract)
+import Lib.AST.Function (getCtFunction)
 import Lib.AST.Model
-import Lib.Parser
+  ( Contract (Contract, ctFunctions, ctName, ctVariables),
+    ContractField (CtFunction, CtVariable),
+    Function
+      ( Function,
+        fReturnTyp,
+        fVisiblitySpecifier,
+        fargs,
+        fmodifiers,
+        fname
+      ),
+    SType (STypeBool, STypeUint),
+    StateVariable
+      ( StateVariable,
+        svComment,
+        svName,
+        svType,
+        svVarExpr,
+        svVisibleSpecifier
+      ),
+    VisibilitySpecifier (VsPublic),
+  )
+import Lib.Parser (runParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec

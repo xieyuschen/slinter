@@ -1,56 +1,57 @@
 module Lib.AST.Model where
 
+import Data.Text (Text)
 import Lib.Parser (SemVer)
 
-keywordLogicalOr :: String
+keywordLogicalOr :: Text
 keywordLogicalOr = "||"
 
-keywordLogicalAnd :: String
+keywordLogicalAnd :: Text
 keywordLogicalAnd = "&&"
 
-keywordEquality :: String
+keywordEquality :: Text
 keywordEquality = "=="
 
-keywordLogicalNegation :: String
+keywordLogicalNegation :: Text
 keywordLogicalNegation = "!"
 
-keywordInequality :: String
+keywordInequality :: Text
 keywordInequality = "!="
 
-keywordContract :: String
+keywordContract :: Text
 keywordContract = "contract"
 
-keywordPragma :: String
+keywordPragma :: Text
 keywordPragma = "pragma"
 
-keywordSolidity :: String
+keywordSolidity :: Text
 keywordSolidity = "solidity"
 
-keywordCommentPrefix :: String
+keywordCommentPrefix :: Text
 keywordCommentPrefix = "//"
 
-semicolon :: String
+semicolon :: Text
 semicolon = ";"
 
-colon :: String
+colon :: Text
 colon = ":"
 
-leftCurlyBrace :: String
+leftCurlyBrace :: Text
 leftCurlyBrace = "{"
 
-rightCurlyBrace :: String
+rightCurlyBrace :: Text
 rightCurlyBrace = "}"
 
-leftParenthesis :: String
+leftParenthesis :: Text
 leftParenthesis = "("
 
-rightParenthesis :: String
+rightParenthesis :: Text
 rightParenthesis = ")"
 
-leftSquareBracket :: String
+leftSquareBracket :: Text
 leftSquareBracket = "["
 
-rightSquareBracket :: String
+rightSquareBracket :: Text
 rightSquareBracket = "]"
 
 data ContractField
@@ -70,22 +71,22 @@ data AST
   | ASTVariable StateVariable
   | ASTContract Contract
   | Struct
-      { name :: String
+      { name :: Text
       }
   deriving (Show, Eq)
 
 -- // SPDX-License-Identifier: MIT
-type SPDXComment = String
+type SPDXComment = Text
 
 -- // compiler version must be greater than or equal to 0.8.24 and less than 0.9.0
-type Comment = String
+type Comment = Text
 
 -- pragma solidity ^0.8.24;
 type Pragma = SemVer
 
 data Structure = Structure
-  { structName :: String,
-    structFields :: [(SType, String)]
+  { structName :: Text,
+    structFields :: [(SType, Text)]
   }
   deriving (Show, Eq)
 
@@ -96,7 +97,7 @@ data Mapping = Mapping
   deriving (Show, Eq)
 
 data SAlias = SAlias
-  { salias :: String,
+  { salias :: Text,
     saliasOriginType :: SType
   }
   deriving (Show, Eq)
@@ -114,7 +115,7 @@ data SType -- solidity type
   | STypeBytes Int
   | STypeMapping Mapping
   | STypeArray ArrayN
-  | STypeCustom String
+  | STypeCustom Text
   | STypeAlias SAlias
   | STypeStructure Structure
   | CustomTODO
@@ -127,9 +128,9 @@ data ArrayN = ArrayN
   deriving (Show, Eq)
 
 data Function = Function
-  { fmodifiers :: [String],
+  { fmodifiers :: [Text],
     fVisiblitySpecifier :: VisibilitySpecifier,
-    fname :: String,
+    fname :: Text,
     fargs :: [FnDeclArg],
     fReturnTyp :: Maybe SType
   }
@@ -148,14 +149,14 @@ data VisibilitySpecifier
 data StateVariable = StateVariable
   { svVisibleSpecifier :: VisibilitySpecifier,
     svType :: SType,
-    svName :: String,
+    svName :: Text,
     svComment :: Maybe Comment, -- attached comment
     svVarExpr :: Maybe SExpr
   }
   deriving (Show, Eq)
 
 data Contract = Contract
-  { ctName :: String,
+  { ctName :: Text,
     ctFunctions :: [Function],
     ctVariables :: [StateVariable]
   }
@@ -166,15 +167,15 @@ data BitLengthDesc
   | BitLengthWithDecimal Int Int -- the first is the bit length and the second is the decimal length
   deriving (Show, Eq)
 
-keywordFunction :: String
+keywordFunction :: Text
 keywordFunction = "function"
 
-keywordReturns :: String
+keywordReturns :: Text
 keywordReturns = "returns"
 
 data STypeEnum = STypeEnum
-  { ename :: String,
-    eelems :: [String]
+  { ename :: Text,
+    eelems :: [Text]
   }
   deriving (Show, Eq)
 
@@ -196,12 +197,12 @@ data ExprUnary = ExprUnary
 data Literal
   = LNum Int
   | LBool Bool
-  | LString String
+  | LString Text
   deriving (Show, Eq)
 
 data FnDeclArg = FnDeclArg
   { fnArgTp :: SType,
-    fnArgName :: Maybe String,
+    fnArgName :: Maybe Text,
     fnArgLocation :: DataLocation
   }
   deriving (Show, Eq)
@@ -210,21 +211,21 @@ data FnCallArgs
   = FnCallArgsList [SExpr] -- refers to the normal function call
   -- refers to the 'named parameter' call
   -- see https://docs.soliditylang.org/en/latest/control-structures.html#function-calls-with-named-parameters
-  | FnCallArgsNamedParameters [(String, SExpr)]
+  | FnCallArgsNamedParameters [(Text, SExpr)]
   deriving (Show, Eq)
 
 data ExprFnCall = ExprFnCall
   { -- Nothing refers to it's an internal function,
     -- 'Just c' refers to the external function call from contract c
-    fnContractName :: Maybe String,
-    fnName :: String,
+    fnContractName :: Maybe Text,
+    fnName :: Text,
     fnArguments :: FnCallArgs
   }
   deriving (Show, Eq)
 
 data ExprSelection = ExprSelection
   { selectionBase :: SExpr,
-    selectionField :: String
+    selectionField :: Text
   }
   deriving (Show, Eq)
 
@@ -245,7 +246,7 @@ data SExpr
   = SExprB ExprBinary
   | SExprParentheses SExpr
   | SExprU ExprUnary
-  | SExprVar String -- String refers to the variable name
+  | SExprVar Text -- Text refers to the variable name
   | SExprL Literal
   | SExprF ExprFnCall
   | SExprS ExprSelection
@@ -290,7 +291,7 @@ data Operator
   deriving (Show, Eq)
 
 data StAssign = StAssign
-  { stAssignVarName :: String,
+  { stAssignVarName :: Text,
     stAssignExpr :: SExpr
   }
   deriving (Show, Eq)
@@ -303,7 +304,7 @@ data DataLocation = Memory | Storage | Calldata
 -- such as 'uint memory name = 1+2;'
 data StVarDefinition = StVarDefinition
   { stVarType :: SType,
-    stVarName :: String,
+    stVarName :: Text,
     stVarLocation :: DataLocation,
     stVarExpr :: Maybe SExpr,
     stVarComment :: Maybe Comment -- attached comment

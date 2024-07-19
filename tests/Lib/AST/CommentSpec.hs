@@ -1,10 +1,13 @@
 module Lib.AST.CommentSpec (spec) where
 
 import Control.Monad (forM_)
-import Lib.AST.Comment
+import Lib.AST.Comment (pComment, pPragma, pSPDXComment)
 import Lib.Parser
+  ( SemVer (SemVer, major, minor, patch, semVerRangeMark),
+    SemVerRangeMark (Caret, Tilde, Wildcards),
+  )
 import Lib.TestCommon
-import Test.Hspec
+import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do

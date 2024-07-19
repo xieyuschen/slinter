@@ -2,9 +2,45 @@ module Lib.AST.OperSpec where
 
 import Control.Monad (forM_)
 import Lib.AST.Model
-import Lib.AST.Oper
-import Lib.TestCommon
-import Test.Hspec
+  ( Operator
+      ( ArithmeticAddition,
+        ArithmeticDivision,
+        ArithmeticExp,
+        ArithmeticModulus,
+        ArithmeticMultiplication,
+        BitAnd,
+        BitExor,
+        BitNeg,
+        BitOr,
+        ComparisionLess,
+        ComparisionLessEqual,
+        ComparisionMore,
+        ComparisionMoreEqual,
+        CompoundAddition,
+        CompoundAnd,
+        CompoundDevision,
+        CompoundExor,
+        CompoundLeftShift,
+        CompoundMinus,
+        CompoundModulus,
+        CompoundMultiply,
+        CompoundOr,
+        CompoundRightShift,
+        Decrement,
+        Increment,
+        LogicalAnd,
+        LogicalEqual,
+        LogicalInequal,
+        LogicalNegation,
+        LogicalOr,
+        Minus,
+        ShiftLeft,
+        ShiftRight
+      ),
+  )
+import Lib.AST.Oper (pOperator)
+import Lib.TestCommon (appendSuffix, verifyParser)
+import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do

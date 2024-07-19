@@ -2,9 +2,62 @@ module Lib.AST.ExprSpec (spec) where
 
 import Control.Monad (forM_)
 import Lib.AST.Expr
+  ( pElemIndex,
+    pExprTenary,
+    pExpression,
+    pFuncCall,
+    pLocationModifer,
+    pSelection,
+  )
 import Lib.AST.Model
-import Lib.TestCommon
-import Test.Hspec
+  ( DataLocation (Calldata, Memory, Storage),
+    ExprBinary (ExprBinary, bOperator, leftOperand, rightOperand),
+    ExprFnCall (ExprFnCall, fnArguments, fnContractName, fnName),
+    ExprIndex (ExprIndex, elemBase, elemIndex),
+    ExprSelection (ExprSelection, selectionBase, selectionField),
+    ExprTernary
+      ( ExprTernary,
+        leftTernaryExpr,
+        rightTernaryExpr,
+        ternaryCond
+      ),
+    ExprUnary (ExprUnary, uOperand, uOperator),
+    FnCallArgs (FnCallArgsList, FnCallArgsNamedParameters),
+    Literal (LBool, LNum),
+    Operator
+      ( ArithmeticAddition,
+        ArithmeticDivision,
+        ArithmeticMultiplication,
+        BitAnd,
+        BitExor,
+        BitNeg,
+        BitOr,
+        ComparisionLess,
+        ComparisionLessEqual,
+        ComparisionMore,
+        ComparisionMoreEqual,
+        LogicalAnd,
+        LogicalInequal,
+        LogicalNegation,
+        LogicalOr,
+        Minus,
+        ShiftLeft,
+        ShiftRight
+      ),
+    SExpr
+      ( SExprB,
+        SExprF,
+        SExprI,
+        SExprL,
+        SExprParentheses,
+        SExprS,
+        SExprT,
+        SExprU,
+        SExprVar
+      ),
+  )
+import Lib.TestCommon (verifyParser)
+import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do

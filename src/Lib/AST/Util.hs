@@ -1,8 +1,9 @@
 module Lib.AST.Util where
 
 import Control.Monad.Except (MonadError (throwError))
-import Lib.AST.Model
-import Lib.Parser
+import Data.Text (Text)
+import Lib.AST.Model (VisibilitySpecifier (..))
+import Lib.Parser (Parser, pIdentifier, pManySpaces)
 
 pVisibilitySpecifier :: Parser VisibilitySpecifier
 pVisibilitySpecifier = do
@@ -11,7 +12,7 @@ pVisibilitySpecifier = do
     Just specifier -> return specifier
     Nothing -> throwError "not a valid visible specifier"
 
-toVisibilitySpecifier :: String -> Maybe VisibilitySpecifier
+toVisibilitySpecifier :: Text -> Maybe VisibilitySpecifier
 toVisibilitySpecifier str =
   case str of
     "public" -> return VsPublic

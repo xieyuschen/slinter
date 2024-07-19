@@ -3,13 +3,63 @@ module Lib.AST.Expr where
 import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
-import Control.Monad.State
+import Control.Monad.State (MonadState (get, put), guard)
 import Data.Char (isSpace)
 import Data.Maybe (fromMaybe, maybeToList)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Lib.AST.Model
+  ( DataLocation (..),
+    ExprBinary (ExprBinary),
+    ExprFnCall (..),
+    ExprIndex (ExprIndex, elemBase, elemIndex),
+    ExprSelection (ExprSelection, selectionBase, selectionField),
+    ExprTernary (..),
+    ExprUnary (..),
+    FnCallArgs (..),
+    Literal (..),
+    Operator (Minus),
+    SExpr (..),
+    colon,
+    leftCurlyBrace,
+    leftParenthesis,
+    leftSquareBracket,
+    rightCurlyBrace,
+    rightParenthesis,
+    rightSquareBracket,
+  )
 import Lib.AST.Oper
+  ( opRank10,
+    opRank11,
+    opRank12,
+    opRank13,
+    opRank2,
+    opRank3,
+    opRank4,
+    opRank5,
+    opRank6,
+    opRank7,
+    opRank8,
+    opRank9,
+    pOpRank,
+    pOpRankLast,
+    pOperator,
+  )
 import Lib.Parser
+  ( Parser,
+    many,
+    pBool,
+    pIdentifier,
+    pMany1,
+    pManySpaces,
+    pNumber,
+    pOneKeyword,
+    pString,
+    pStringTo,
+    pTry,
+  )
 
+ops :: [[Operator]]
 ops =
   reverse
     [ opRank2,
@@ -128,7 +178,7 @@ pFuncCall = do
         fnArguments = args
       }
 
-pFuncCallNamedParameterKeyValue :: Parser (String, SExpr)
+pFuncCallNamedParameterKeyValue :: Parser (Text, SExpr)
 pFuncCallNamedParameterKeyValue =
   liftA2
     (,)
@@ -186,7 +236,7 @@ pLocationModifer =
 pExprTenary :: Parser ExprTernary
 pExprTenary = do
   s <- get
-  let (cond, s') = break (== '?') s -- break the expression first to parse them one by one
+  let (cond, s') = T.break (== '?') s -- break the expression first to parse them one by one
   guard $ s' /= ""
   put cond
   cond <-

@@ -3,11 +3,24 @@ module Lib.AST.Stat where
 import Control.Applicative (Alternative ((<|>)), Applicative (..), optional)
 import Data.Maybe (fromMaybe, isJust)
 import Lib.AST.Comment (pComment)
-import Lib.AST.Expr
+import Lib.AST.Expr (pExpression, pLocationModifer)
 import Lib.AST.Model
+  ( DataLocation (Storage),
+    StAssign (..),
+    StVarDefinition (..),
+    StateVariable (..),
+    VisibilitySpecifier (VsInternal),
+    semicolon,
+  )
 import Lib.AST.Type (pType)
 import Lib.AST.Util (pVisibilitySpecifier)
 import Lib.Parser
+  ( Parser,
+    pIdentifier,
+    pManySpaces,
+    pOneKeyword,
+    pTry,
+  )
 
 pAssignStat :: Parser StAssign
 pAssignStat =

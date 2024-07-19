@@ -1,3 +1,4 @@
+-- todo: can we remove it?
 {-# LANGUAGE DoAndIfThenElse #-}
 
 module Lib.Parser where
@@ -21,6 +22,9 @@ import Control.Monad.State
   )
 import Data.Char (isAlpha, isDigit, isNumber)
 import Data.List (stripPrefix)
+import Data.Text (Text)
+import qualified Data.Text as T
+import qualified Data.Text.Read as TR
 
 -- todo: support version range like 1.2.x, 1.x, 1.2.3 - 2.3.4 later
 data SemVerRangeMark
@@ -37,7 +41,13 @@ data SemVer = SemVer
   }
   deriving (Show, Eq)
 
-type ErrMsg = String
+type ErrMsg = Text
+
+-- pass the type you want to pass, so use a instead of [a]
+type Parser a = ExceptT ErrMsg (State Text) a
+
+runParser :: Parser a -> Text -> (Either Text a, Text)
+runParser p = runState (runExceptT p)
 
 -- pTry runs the parser, if it fails it restores the state consumed by the parser
 pTry :: Parser a -> Parser a
@@ -48,22 +58,16 @@ pTry p = ExceptT $ state $ \s -> do
     Left _ -> first Left ("", s)
     Right r -> first Right (r, s')
 
--- pass the type you want to pass, so use a instead of [a]
-type Parser a = ExceptT ErrMsg (State String) a
-
-runParser :: Parser a -> String -> (Either ErrMsg a, String)
-runParser p = runState (runExceptT p)
-
-pReadline :: Parser String
+pReadline :: Parser Text
 pReadline = ExceptT $ state $ \s -> do
-  let (left, right) = break (== '\n') s
+  let (left, right) = T.break (== '\n') s
   case right of
     "" -> first Right (s, "") -- only one line, so we return all as this line
-    _ -> first Right (left, tail right)
+    _ -> first Right (left, T.tail right)
 
-pUntil :: (Char -> Bool) -> Parser String
+pUntil :: (Char -> Bool) -> Parser Text
 pUntil cond = ExceptT $ state $ \s -> do
-  let (left, right) = break cond s
+  let (left, right) = T.break cond s
   case right of
     "" -> first Left ("cannot find the until char", s)
     _ -> first Right (left, right)
@@ -100,19 +104,19 @@ pMany1Stop p v = ExceptT $ state $ \s -> do
           let (r, s'') = runParser (pManyStop p v) s'
           (fmap (d :) r, s'')
 
-pOne :: (Char -> Bool) -> Parser String
+pOne :: (Char -> Bool) -> Parser Text
 pOne f = do
   s <- get
-  let (prefix, s') = span f s
-  guard $ not $ null prefix
+  let (prefix, s') = T.span f s
+  guard $ not $ T.null prefix
   put s' >> return prefix
 
 -- one creates a parser to consume the given string
 -- and generate a type based on the passed constructor
-pStringTo :: String -> (String -> a) -> Parser a
+pStringTo :: Text -> (Text -> a) -> Parser a
 pStringTo desired f = ExceptT $ state $ \s -> do
-  case stripPrefix desired s of
-    Nothing -> first Left ("fail to find desired charactor: '" ++ desired ++ "';", s)
+  case T.stripPrefix desired s of
+    Nothing -> first Left ("fail to find desired charactor: '" <> desired <> "';", s)
     Just remainder -> first Right (f desired, remainder)
 
 safeTail :: [a] -> Maybe [a]
@@ -122,58 +126,53 @@ safeTail xs = Just $ tail xs
 pManySpaces :: Parser [()]
 pManySpaces = many pSpace
 
-pOneKeyword :: String -> Parser String
+pOneKeyword :: Text -> Parser Text
 pOneKeyword s = pStringTo s id
 
 pSpace :: Parser ()
 pSpace = ExceptT $ state $ \s -> do
-  if s /= "" && (head s == ' ' || head s == '\n')
-    then first Right ((), tail s)
+  if s /= "" && (T.head s == ' ' || T.head s == '\n')
+    then first Right ((), T.tail s)
     else
       first Left ("fail to parse a space", s)
 
 -- todo: support unicode and hex, such as:
 -- unicode"Hello 😃";
 -- hex"0011223344556677"
-pString :: Parser String
-pString = ExceptT $ state $ \s -> do
-  case safeTail s of
-    Nothing -> first Left ("cannot find the right \"", s)
-    Just xs -> do
-      ( if head s /= '\"'
-          then first Left ("not a string", s)
-          else
-            ( do
-                let (word, left) = break (== '\"') xs -- remove the leading "
-                if left == "" || head left /= '\"'
-                  then first Left ("missing right quote", s)
-                  else do
-                    first Right ("\"" ++ word ++ "\"", tail left) -- remove the ending "
-            )
-        )
+pString :: Parser Text
+pString = do
+  s <- get
+  guard $ not (T.null s)
+  let xs = T.tail s
+  guard $ T.head s /= '\"'
+  let (word, left) = T.break (== '\"') xs -- remove the leading "
+  if left == "" || T.head left /= '\"'
+    then throwError "missing right quote"
+    else do
+      put (T.tail left) >> return ("\"" <> word <> "\"")
 
 pNumber :: Parser Int
 pNumber = ExceptT $ state $ \s -> do
-  let (num, left) = span isDigit s
+  let (num, left) = T.span isDigit s
   if num == ""
     then first Left ("", s)
     else
-      first Right (read num, left)
+      first Right (read $ T.unpack num, left)
 
 pBool :: Parser Bool
 pBool = do
   s <- get
-  guard $ (\x -> length x >= 4) s
-  let s' = drop 4 s
-  case take 4 s of
+  guard $ (\x -> T.length x >= 4) s
+  let s' = T.drop 4 s
+  case T.take 4 s of
     "true" -> do
       put s'
       return True
     "fals" -> do
-      guard $ not $ null s'
-      case take 1 s' of
+      guard $ not $ T.null s'
+      case T.take 1 s' of
         "e" -> do
-          put $ drop 1 s'
+          put $ T.drop 1 s'
           return False
         _ -> throwError "not a bool literal"
     _ -> throwError "not a bool literal"
@@ -181,11 +180,11 @@ pBool = do
 isUnderscore :: Char -> Bool
 isUnderscore = (== '_')
 
-pIdentifier :: Parser String
+pIdentifier :: Parser Text
 pIdentifier = ExceptT $ state $ \s ->
   let base = liftA2 (||) isAlpha isUnderscore
-      (identifier, rest) = span (liftA2 (||) isNumber base) s
-   in if not (null identifier) && base (head identifier)
+      (identifier, rest) = T.span (liftA2 (||) isNumber base) s
+   in if not (T.null identifier) && base (T.head identifier)
         then first Right (identifier, rest)
         else first Left ("Failed to parse identifier", s)
 

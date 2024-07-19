@@ -1,7 +1,6 @@
 module Lib.AST.Contract where
 
-import Control.Applicative
-import Control.Applicative (Alternative ((<|>)), optional)
+import Control.Applicative (Alternative (many, (<|>)))
 import Data.Maybe (mapMaybe)
 import Lib.AST.Comment (pComment)
 import Lib.AST.Function

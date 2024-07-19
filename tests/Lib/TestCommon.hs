@@ -1,16 +1,18 @@
 module Lib.TestCommon where
 
-import Lib.Parser
+import Data.Text (Text)
+import qualified Data.Text as T
+import Lib.Parser (ErrMsg, Parser, runParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
-appendSuffix :: String -> (String, Either ErrMsg a, String) -> (String, Either ErrMsg a, String)
-appendSuffix s (input, expected, state) = (input ++ s, expected, state ++ s)
+appendSuffix :: Text -> (Text, Either ErrMsg a, Text) -> (Text, Either ErrMsg a, Text)
+appendSuffix s (input, expected, state) = (input <> s, expected, state <> s)
 
-verifyParser :: (Eq a, Show a) => String -> Parser a -> (String, Either ErrMsg a, String) -> Spec
+verifyParser :: (Eq a, Show a) => Text -> Parser a -> (Text, Either ErrMsg a, Text) -> Spec
 verifyParser content parser (input, expectedResult, expectedState) = do
-  describe ("parse " ++ content ++ ": " ++ input) $ do
+  describe (T.unpack $ "parse " <> content <> ": " <> input) $ do
     let (result, s) = runParser parser input
-    it ("could parse the " ++ content) $ do
+    it (T.unpack $ "could parse the " <> content) $ do
       result `shouldBe` expectedResult
     it "should leave correct state" $ do
       s `shouldBe` expectedState

@@ -1,10 +1,43 @@
 module Lib.AST.StatSpec (spec) where
 
-import Control.Monad
+import Control.Monad (forM_)
 import Lib.AST.Model
+  ( DataLocation (Memory, Storage),
+    ExprBinary (ExprBinary, bOperator, leftOperand, rightOperand),
+    ExprFnCall (ExprFnCall, fnArguments, fnContractName, fnName),
+    ExprIndex (ExprIndex, elemBase, elemIndex),
+    ExprSelection (ExprSelection, selectionBase, selectionField),
+    FnCallArgs (FnCallArgsList),
+    Literal (LNum),
+    Operator (ArithmeticAddition, Minus),
+    SExpr (SExprB, SExprF, SExprI, SExprL, SExprS, SExprVar),
+    SType (STypeFixed, STypeUint),
+    StAssign (StAssign, stAssignExpr, stAssignVarName),
+    StVarDefinition
+      ( StVarDefinition,
+        stVarComment,
+        stVarExpr,
+        stVarLocation,
+        stVarName,
+        stVarType
+      ),
+    StateVariable
+      ( StateVariable,
+        svComment,
+        svName,
+        svType,
+        svVarExpr,
+        svVisibleSpecifier
+      ),
+    VisibilitySpecifier (VsInternal, VsPublic),
+  )
 import Lib.AST.Stat
-import Lib.TestCommon
-import Test.Hspec
+  ( pAssignStat,
+    pStVarDefinition,
+    pStateVariable,
+  )
+import Lib.TestCommon (verifyParser)
+import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do

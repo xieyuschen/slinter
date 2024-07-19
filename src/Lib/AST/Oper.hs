@@ -1,17 +1,19 @@
 module Lib.AST.Oper where
 
-import Control.Applicative
+import Control.Applicative (Alternative ((<|>)))
 import Control.Monad.Except (MonadError (throwError))
-import Control.Monad.State
-import Lib.AST.Model
-import Lib.Parser
+import Control.Monad.State (MonadState (get, put), guard)
+import Data.Text (Text)
+import qualified Data.Text as T
+import Lib.AST.Model (Operator (..))
+import Lib.Parser (Parser, pManySpaces, pTry)
 
 pOperator3Char :: Parser Operator
 pOperator3Char = do
   s <- get
-  guard $ length s >= 3 -- at least 3 characters
-  put $ drop 3 s
-  case take 3 s of
+  guard $ T.length s >= 3 -- at least 3 characters
+  put $ T.drop 3 s
+  case T.take 3 s of
     ">>=" -> return CompoundRightShift
     "<<=" -> return CompoundLeftShift
     _ -> throwError "unsupported operator in three characters"
@@ -19,9 +21,9 @@ pOperator3Char = do
 pOperator2Char :: Parser Operator
 pOperator2Char = do
   s <- get
-  guard $ length s >= 2 -- at least 2 characters
-  put $ drop 2 s
-  case take 2 s of
+  guard $ T.length s >= 2 -- at least 2 characters
+  put $ T.drop 2 s
+  case T.take 2 s of
     "+=" -> return CompoundAddition
     "++" -> return Increment
     "-=" -> return CompoundMinus
@@ -46,9 +48,9 @@ pOperator2Char = do
 pOperator1Char :: Parser Operator
 pOperator1Char = do
   s <- get
-  guard $ not $ null s -- check whether the string has enough chars to consume
-  put $ drop 1 s
-  case take 1 s of
+  guard $ not $ T.null s -- check whether the string has enough chars to consume
+  put $ T.drop 1 s
+  case T.take 1 s of
     "+" -> return ArithmeticAddition
     "-" -> return Minus
     "/" -> return ArithmeticDivision

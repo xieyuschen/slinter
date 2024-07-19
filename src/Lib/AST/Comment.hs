@@ -1,14 +1,27 @@
 module Lib.AST.Comment where
 
 import Data.Char (isSpace)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Lib.AST.Model
+  ( Comment,
+    Pragma,
+    keywordPragma,
+    keywordSolidity,
+  )
 import Lib.Parser
+  ( Parser,
+    pManySpaces,
+    pOneKeyword,
+    pReadline,
+    pSemVer,
+  )
 
 -- // SPDX-License-Identifier: MIT
-pSPDXComment :: Parser String
+pSPDXComment :: Parser Text
 pSPDXComment = do
   content <- pOneKeyword "// SPDX-License-Identifier:" >> pManySpaces >> pReadline
-  let (license, _) = break isSpace content
+  let (license, _) = T.break isSpace content
   return license
 
 -- // helloworld

@@ -1,11 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Lib.ParserSpec (spec) where
 
 -- export multiple test functions is not supported, as the document reads:
 -- Each spec file has to export a top-level binding spec of type Spec.
 
 import Control.Monad (forM_)
+import Data.Text (Text)
+import qualified Data.Text as T
 import Lib.Parser
   ( Parser,
     SemVer (SemVer, major, minor, patch, semVerRangeMark),
@@ -23,7 +23,7 @@ spec = do
   parseManyTokensSpec
   parseVersionSpec
 
-structCom :: Parser (String, String, String)
+structCom :: Parser (Text, Text, Text)
 structCom = do
   k1 <- pOneKeyword "type" <* pManySpaces
   ident <- pIdentifier <* pManySpaces
@@ -80,7 +80,7 @@ parseVersionSpec = do
   where
     f (input, expectedResult, expectedState) =
       describe ("parse version " ++ input) $ do
-        let (result, s) = runParser pSemVer input
+        let (result, s) = runParser pSemVer $ T.pack input
         it "gets the correct comment string" $ do
           result `shouldBe` expectedResult
         it "leaves the correct state" $ do

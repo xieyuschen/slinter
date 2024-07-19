@@ -5,12 +5,29 @@ module Lib.AST.Type where
 import Control.Applicative (asum, optional)
 import Control.Arrow (Arrow (first))
 import Control.Monad.Except
+  ( Functor (fmap),
+    Monad (return, (>>), (>>=)),
+    guard,
+  )
 import Control.Monad.RWS (MonadReader (ask))
 import Control.Monad.State (MonadState (get, put, state))
 import Data.Char (isAlpha, isNumber)
 import Data.Maybe (fromMaybe, isJust)
-import Debug.Trace
+import Data.Text (Text)
 import GHC.Base
+  ( Alternative (many, (<|>)),
+    Applicative (liftA2, (<*)),
+    Bool (True),
+    Eq ((==)),
+    Functor (fmap),
+    Int,
+    Maybe (..),
+    Monad (return, (>>), (>>=)),
+    Ord ((<=)),
+    const,
+    ($),
+    (&&),
+  )
 import Lib.AST.Expr (pExpression)
 import Lib.AST.Model
   ( ArrayN (ArrayN, aElemType),
@@ -201,21 +218,21 @@ extractBitLengthWithDecimal _ = Nothing
 -- and we support the standard types in solidity only here, the custom one won't be treated as this
 -- it consumes the alpha letters from the beginning, and tries to parse the following parts as a integer
 -- if it fails, it will treat the indentifier as a whole and parses a result without number part
-pTypeWithDesc :: Parser (String, Maybe BitLengthDesc)
+pTypeWithDesc :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithDesc =
   pTry pTypeWithLength
     <|> pTry pTypeWithLenDecimal
     <|> fmap (,Nothing) pIdentifier
 
 -- parse the following types: ["int", "uint", "fixed", "ufixed", "bytes"]
-pTypeWithLength :: Parser (String, Maybe BitLengthDesc)
+pTypeWithLength :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithLength = do
   prefix <- pOne isAlpha
   guard $ prefix `elem` ["int", "uint", "bytes"]
   l <- optional pBitLength
   return (prefix, l)
 
-pTypeWithLenDecimal :: Parser (String, Maybe BitLengthDesc)
+pTypeWithLenDecimal :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithLenDecimal = do
   prefix <- pOne isAlpha
   guard $ prefix `elem` ["fixed", "ufixed"]
@@ -232,24 +249,24 @@ pBitLengthDecimal = do
 pBitLength :: Parser BitLengthDesc
 pBitLength = BitLength <$> pNumber
 
-pBool :: (String, Maybe BitLengthDesc) -> Parser SType
+pBool :: (Text, Maybe BitLengthDesc) -> Parser SType
 pBool (s, _) = do
   guard $ s == "bool"
   return STypeBool
 
-pInt :: (String, Maybe BitLengthDesc) -> Parser SType
+pInt :: (Text, Maybe BitLengthDesc) -> Parser SType
 pInt (s, bit) = do
   guard $ s == "int"
   guard $ maybe True isValidDesc bit
   return $ STypeInt $ fromMaybe 256 (bit >>= extractBitLength)
 
-pUInt :: (String, Maybe BitLengthDesc) -> Parser SType
+pUInt :: (Text, Maybe BitLengthDesc) -> Parser SType
 pUInt (s, bit) = do
   guard $ s == "uint"
   guard $ maybe True isValidDesc bit
   return $ STypeUint $ fromMaybe 256 (bit >>= extractBitLength)
 
-pFixed :: (String, Maybe BitLengthDesc) -> Parser SType
+pFixed :: (Text, Maybe BitLengthDesc) -> Parser SType
 pFixed (s, bit) = do
   guard $ s == "fixed"
   guard $ maybe True isValidDesc bit
@@ -257,7 +274,7 @@ pFixed (s, bit) = do
   let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
   return $ STypeFixed l d
 
-pUFixed :: (String, Maybe BitLengthDesc) -> Parser SType
+pUFixed :: (Text, Maybe BitLengthDesc) -> Parser SType
 pUFixed (s, bit) = do
   guard $ s == "ufixed"
   guard $ maybe True isValidDesc bit
@@ -265,24 +282,24 @@ pUFixed (s, bit) = do
   let d = maybe 18 snd (bit >>= extractBitLengthWithDecimal)
   return $ STypeUFixed l d
 
-pAddress :: (String, Maybe BitLengthDesc) -> Parser SType
+pAddress :: (Text, Maybe BitLengthDesc) -> Parser SType
 pAddress (s, bit) = do
   guard $ s == "address"
   payable <- pManySpaces >> optional (pOneKeyword "payable")
   return $ maybe STypeAddress (const STypePayableAddress) payable
 
-pStringType :: (String, Maybe BitLengthDesc) -> Parser SType
+pStringType :: (Text, Maybe BitLengthDesc) -> Parser SType
 pStringType (s, _) = do
   guard $ s == "string"
   return STypeString
 
-pBytes :: (String, Maybe BitLengthDesc) -> Parser SType
+pBytes :: (Text, Maybe BitLengthDesc) -> Parser SType
 pBytes (s, bit) = do
   guard $ s == "bytes"
   guard $ maybe True (\x -> 1 <= x && x <= 8) (bit >>= extractBitLength)
   return $ STypeBytes $ fromMaybe 1 (bit >>= extractBitLength)
 
-pCustom :: (String, Maybe BitLengthDesc) -> Parser SType
+pCustom :: (Text, Maybe BitLengthDesc) -> Parser SType
 pCustom (s, _) = do
   -- built-in type should be supported already inside the
   guard $ s `notElem` ["int", "uint", "fixed", "ufixed", "bytes"]

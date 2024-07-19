@@ -1,13 +1,19 @@
 module Lib.AST.Function where
 
 import Control.Applicative
+  ( Alternative (many, (<|>)),
+    Applicative (liftA2),
+    liftA3,
+    optional,
+  )
 import Control.Monad.Except
   ( ExceptT (ExceptT),
     MonadError (throwError),
   )
 import Control.Monad.State (MonadState (..))
 import Data.Maybe (catMaybes, fromMaybe, isNothing, mapMaybe, maybeToList)
-import Debug.Trace
+import Data.Text (Text)
+import qualified Data.Text as T
 import GHC.Base ()
 import Lib.AST.Expr (pExpression, pLocationModifer)
 import Lib.AST.Model
@@ -29,7 +35,7 @@ import Lib.AST.Model
     rightParenthesis,
   )
 import Lib.AST.Type (pType)
-import Lib.AST.Util
+import Lib.AST.Util (toVisibilitySpecifier)
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -110,7 +116,7 @@ pFunctionArgsQuoted = do
            )
 
 -- parse all decorators(modifers and visibility specifiers) seperated by whitespaces into a list of string
-pFunctionDecorators :: Parser [String]
+pFunctionDecorators :: Parser [Text]
 pFunctionDecorators = do
   modifiers <-
     pManySpaces
@@ -145,7 +151,7 @@ pFunction = do
       <* ( pManySpaces
              >> pOneKeyword leftCurlyBrace
              -- todo: parse the function body
-             >> pUntil (== head rightCurlyBrace)
+             >> pUntil (== T.head rightCurlyBrace)
              >> pOneKeyword rightCurlyBrace
          )
   return
