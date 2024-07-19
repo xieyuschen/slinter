@@ -1,6 +1,9 @@
 name: HLint
 on:
-  - pull_request
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
 jobs:
   hlint:
     runs-on: ubuntu-latest
