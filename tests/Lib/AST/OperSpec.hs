@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.OperSpec where
 
 import Control.Monad (forM_)

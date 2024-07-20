@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
 module Lib.AST.Type where

@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.ExprSpec (spec) where
 
 import Control.Monad (forM_)
@@ -24,37 +26,8 @@ import Lib.AST.Model
     ExprUnary (ExprUnary, uOperand, uOperator),
     FnCallArgs (FnCallArgsList, FnCallArgsNamedParameters),
     Literal (LBool, LNum),
-    Operator
-      ( ArithmeticAddition,
-        ArithmeticDivision,
-        ArithmeticMultiplication,
-        BitAnd,
-        BitExor,
-        BitNeg,
-        BitOr,
-        ComparisionLess,
-        ComparisionLessEqual,
-        ComparisionMore,
-        ComparisionMoreEqual,
-        LogicalAnd,
-        LogicalInequal,
-        LogicalNegation,
-        LogicalOr,
-        Minus,
-        ShiftLeft,
-        ShiftRight
-      ),
-    SExpr
-      ( SExprB,
-        SExprF,
-        SExprI,
-        SExprL,
-        SExprParentheses,
-        SExprS,
-        SExprT,
-        SExprU,
-        SExprVar
-      ),
+    Operator (ArithmeticAddition, ArithmeticDivision, ArithmeticExp, ArithmeticMultiplication, BitAnd, BitExor, BitNeg, BitOr, ComparisionLess, ComparisionLessEqual, ComparisionMore, ComparisionMoreEqual, LogicalAnd, LogicalEqual, LogicalInequal, LogicalNegation, LogicalOr, Minus, ShiftLeft, ShiftRight),
+    SExpr (SExprB, SExprD, SExprF, SExprI, SExprL, SExprN, SExprParentheses, SExprS, SExprT, SExprU, SExprVar),
   )
 import Lib.TestCommon (verifyParser)
 import Test.Hspec (Spec)
@@ -72,6 +45,134 @@ spec = do
   parsepElemIndexSpec
   parseLocationModifierSpec
   parseTernaryExprSpec
+  parseDeleteNewExprSpec
+  parsePrecedenceExprSpec
+
+parsePrecedenceExprSpec :: Spec
+parsePrecedenceExprSpec = do
+  let testCases =
+        [ ( "true?false:true || true && false == 3 < false + 3 + 2*m[1][2]**2",
+            Right
+              ( SExprT
+                  ExprTernary
+                    { ternaryCond = SExprL (LBool True),
+                      leftTernaryExpr = SExprL (LBool False),
+                      rightTernaryExpr =
+                        SExprB
+                          ExprBinary
+                            { leftOperand = SExprL (LBool True),
+                              rightOperand =
+                                SExprB
+                                  ExprBinary
+                                    { -- 3 < false + 3 + 2*m[1][2]**2++
+                                      leftOperand = SExprL (LBool True),
+                                      rightOperand =
+                                        SExprB
+                                          ExprBinary
+                                            { leftOperand = SExprL (LBool False),
+                                              rightOperand =
+                                                SExprB
+                                                  ExprBinary
+                                                    { leftOperand = SExprL (LNum 3),
+                                                      rightOperand =
+                                                        SExprB
+                                                          ExprBinary
+                                                            { leftOperand =
+                                                                SExprB
+                                                                  ExprBinary
+                                                                    { leftOperand = SExprL (LBool False),
+                                                                      rightOperand = SExprL (LNum 3),
+                                                                      bOperator = ArithmeticAddition
+                                                                    },
+                                                              rightOperand =
+                                                                SExprB
+                                                                  ExprBinary
+                                                                    { -- 2*
+
+                                                                      leftOperand = SExprL (LNum 2),
+                                                                      rightOperand =
+                                                                        SExprB
+                                                                          ExprBinary
+                                                                            { leftOperand =
+                                                                                SExprI
+                                                                                  ExprIndex
+                                                                                    { elemBase =
+                                                                                        SExprI
+                                                                                          ExprIndex
+                                                                                            { elemBase = SExprVar "m",
+                                                                                              elemIndex = SExprL (LNum 1)
+                                                                                            },
+                                                                                      elemIndex = SExprL (LNum 2)
+                                                                                    },
+                                                                              rightOperand = SExprL (LNum 2),
+                                                                              bOperator = ArithmeticExp
+                                                                            },
+                                                                      bOperator = ArithmeticMultiplication
+                                                                    },
+                                                              bOperator = ArithmeticAddition
+                                                            },
+                                                      bOperator = ComparisionLess
+                                                    },
+                                              bOperator = LogicalEqual
+                                            },
+                                      bOperator = LogicalAnd
+                                    },
+                              bOperator = LogicalOr
+                            }
+                    }
+              ),
+            ""
+          ),
+          ( "2*m[1][2]**2",
+            Right
+              ( SExprB
+                  ExprBinary
+                    { leftOperand = SExprL (LNum 2),
+                      rightOperand =
+                        SExprB
+                          ExprBinary
+                            { leftOperand =
+                                SExprI
+                                  ExprIndex
+                                    { elemBase =
+                                        SExprI
+                                          ExprIndex
+                                            { elemBase = SExprVar "m",
+                                              elemIndex = SExprL (LNum 1)
+                                            },
+                                      elemIndex = SExprL (LNum 2)
+                                    },
+                              rightOperand = SExprL (LNum 2),
+                              bOperator = ArithmeticExp
+                            },
+                      bOperator = ArithmeticMultiplication
+                    }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "unary expression" pExpression
+
+parseDeleteNewExprSpec :: Spec
+parseDeleteNewExprSpec = do
+  let testCases =
+        [ ( "new Contract(123)",
+            Right
+              ( SExprN
+                  ExprFnCall
+                    { fnContractName = Nothing,
+                      fnName = "Contract",
+                      fnArguments = FnCallArgsList [SExprL (LNum 123)]
+                    }
+              ),
+            ""
+          ),
+          ( "delete var",
+            Right (SExprD "var"),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "unary expression" pExpression
 
 parseTernaryExprSpec :: Spec
 parseTernaryExprSpec = do

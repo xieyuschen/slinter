@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.CommentSpec (spec) where
 
 import Control.Monad (forM_)

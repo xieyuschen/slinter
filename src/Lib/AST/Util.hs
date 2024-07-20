@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Util where
 
 import Control.Monad.Except (MonadError (throwError))

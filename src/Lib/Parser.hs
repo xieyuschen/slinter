@@ -1,5 +1,6 @@
 -- todo: can we remove it?
 {-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Lib.Parser where
 

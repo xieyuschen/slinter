@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.ParserSpec (spec) where
 
 -- export multiple test functions is not supported, as the document reads:

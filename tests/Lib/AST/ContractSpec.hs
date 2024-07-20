@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.ContractSpec (spec) where
 
 import Lib.AST.Contract (pContract)

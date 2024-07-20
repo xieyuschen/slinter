@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.TestCommon where
 
 import Data.Text (Text)

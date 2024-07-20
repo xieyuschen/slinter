@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Model where
 
 import Data.Text (Text)
@@ -252,6 +254,8 @@ data SExpr
   | SExprS ExprSelection
   | SExprI ExprIndex
   | SExprT ExprTernary
+  | SExprN ExprFnCall
+  | SExprD Text -- delete keyword
   deriving (Show, Eq)
 
 data Operator

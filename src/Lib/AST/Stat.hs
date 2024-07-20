@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Stat where
 
 import Control.Applicative (Alternative ((<|>)), Applicative (..), optional)

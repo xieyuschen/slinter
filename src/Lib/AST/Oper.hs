@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Oper where
 
 import Control.Applicative (Alternative ((<|>)))

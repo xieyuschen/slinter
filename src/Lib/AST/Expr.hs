@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Expr where
 
 import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
@@ -20,6 +22,7 @@ import Lib.AST.Model
     Literal (..),
     Operator (Minus),
     SExpr (..),
+    SType,
     colon,
     leftCurlyBrace,
     leftParenthesis,
@@ -96,6 +99,7 @@ pExpression =
 pBasicExpr :: Parser SExpr
 pBasicExpr =
   pParenthesizedExpr
+    <|> SExprN <$> pNewCall
     -- we decide to keep supporting the unary expression during parse stage,
     -- such as '123 + -x', where we will report error during syntax check
     <|> SExprU <$> pUnaryExpr
@@ -104,6 +108,7 @@ pBasicExpr =
     <|> pTry pSelection
     -- parse elem index after selection to solve a[x].y
     <|> pTry pElemIndex
+    <|> SExprD <$> pDeleteExpr
     <|> SExprT <$> pTry pExprTenary
     <|> SExprL <$> pLiteral
     <|> SExprVar <$> pIdentifier
@@ -116,6 +121,16 @@ pParenthesizedExpr = do
             >> pExpression
               <* (pManySpaces >> pOneKeyword rightParenthesis)
         )
+
+pNewCall :: Parser ExprFnCall
+pNewCall = pManySpaces >> pOneKeyword "new" >> pFuncCall
+
+pDeleteExpr :: Parser Text
+pDeleteExpr =
+  pManySpaces
+    >> pOneKeyword "delete"
+    >> pManySpaces
+    >> pIdentifier
 
 pSelection :: Parser SExpr
 pSelection = do
