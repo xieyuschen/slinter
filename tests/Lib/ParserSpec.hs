@@ -16,7 +16,7 @@ import Lib.Parser
     pManySpaces,
     pOneKeyword,
     pSemVer,
-    runParser,
+    runSParser,
   )
 import Test.Hspec (Spec, describe, it, shouldBe)
 
@@ -65,7 +65,7 @@ parseManyTokensSpec = do
         ]
   forM_ succeededCases $ \(input, expected, left) ->
     describe "parse helloworld identifier" $ do
-      let (result, s') = runParser structCom input
+      let (result, s') = runSParser structCom input
       it "could parse the result successfully" $ do
         result `shouldBe` Right expected
       it "leave the correct state" $ do
@@ -82,7 +82,7 @@ parseVersionSpec = do
   where
     f (input, expectedResult, expectedState) =
       describe ("parse version " ++ input) $ do
-        let (result, s) = runParser pSemVer $ T.pack input
+        let (result, s) = runSParser pSemVer $ T.pack input
         it "gets the correct comment string" $ do
           result `shouldBe` expectedResult
         it "leaves the correct state" $ do

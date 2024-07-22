@@ -179,7 +179,7 @@ parseSimpleTypeSpec = do
           ),
           ( "uint7",
             Left "",
-            ""
+            "uint7"
           ),
           ( "int128",
             Right $ STypeInt 128,
@@ -187,7 +187,7 @@ parseSimpleTypeSpec = do
           ),
           ( "int257",
             Left "",
-            ""
+            "int257"
           ),
           ( "custom8",
             Right $ STypeCustom "custom8",
@@ -219,7 +219,7 @@ parseSimpleTypeSpec = do
           ),
           ( "fixed257x100",
             Left "",
-            ""
+            "fixed257x100"
           ),
           ( "address",
             Right STypeAddress,
@@ -239,7 +239,7 @@ parseSimpleTypeSpec = do
           ),
           ( "bytes9",
             Left "",
-            ""
+            "bytes9"
           )
         ]
   forM_ testCases $ verifyParser "simple types" pType
@@ -285,7 +285,7 @@ parseTypeEnumSpec = do
           ),
           ( "enum TEST { } test state",
             Left "Failed to parse identifier",
-            "} test state"
+            "test state"
           )
         ]
   forM_ testCases $ verifyParser "type enum" pTypeEnum
@@ -311,7 +311,7 @@ parseTypeAliasSpec = do
           ),
           ( "type is uint256",
             Left "fail to find desired charactor: 'is';",
-            "uint256"
+            "type is uint256"
           )
         ]
   forM_ testCases $ verifyParser "type alias" pTypeAlias
@@ -371,11 +371,11 @@ parseTypeStructureSpec = do
           ),
           ( "struct empty { \n uint128 price; address;}",
             Left "fail to find desired charactor: '}';",
-            ";}"
+            "struct empty { \n uint128 price; address;}"
           ),
           ( "struct {} test state",
             Left "Failed to parse identifier",
-            "{} test state"
+            "struct {} test state"
           )
         ]
   forM_ testCases $ verifyParser "type struct" pTypeStruct

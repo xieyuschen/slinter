@@ -20,7 +20,7 @@ spec = do
 parseCommentSpec :: Spec
 parseCommentSpec = do
   let testCases =
-        [ ( "//helloworld _*&^",
+        [ ( "//helloworld _*&^\r\n",
             Right "helloworld _*&^",
             ""
           ),
@@ -31,6 +31,10 @@ parseCommentSpec = do
           ( "//   helloworld _*&^\n",
             Right "   helloworld _*&^",
             ""
+          ),
+          ( "// helloworld _*&^",
+            Left "", -- no ending line, won't be treated as a comment
+            "// helloworld _*&^"
           )
         ]
   forM_ testCases $ verifyParser "comment" pComment
@@ -38,11 +42,11 @@ parseCommentSpec = do
 parseSPDXCommentSpec :: Spec
 parseSPDXCommentSpec = do
   let testCases =
-        [ ( "// SPDX-License-Identifier: MIT",
+        [ ( "// SPDX-License-Identifier: MIT\n",
             Right "MIT",
             ""
           ),
-          ( "// SPDX-License-Identifier: BSD-2",
+          ( "// SPDX-License-Identifier: BSD-2\n",
             Right "BSD-2",
             ""
           )

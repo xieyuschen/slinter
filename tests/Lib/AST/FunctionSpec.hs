@@ -4,26 +4,8 @@ module Lib.AST.FunctionSpec (spec) where
 
 import Control.Monad (forM_)
 import Lib.AST.Function
-  ( pFunction,
-    pFunctionArgsQuoted,
-    pFunctionDecorators,
-    pReturnsClause,
-  )
 import Lib.AST.Model
-  ( DataLocation (Calldata, Memory, Storage),
-    FnDeclArg (FnDeclArg, fnArgLocation, fnArgName, fnArgTp),
-    Function
-      ( Function,
-        fReturnTyp,
-        fVisiblitySpecifier,
-        fargs,
-        fmodifiers,
-        fname
-      ),
-    SType (STypeFixed, STypeString, STypeUint),
-    VisibilitySpecifier (VsExternal, VsInternal, VsPublic),
-  )
-import Lib.Parser (runParser)
+import Lib.Parser (runSParser)
 import Lib.TestCommon (verifyParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
@@ -128,7 +110,7 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() returns (uint256) { count += 1; } }",
             Left "visibility specifier should contain only one for each function",
-            "returns (uint256) { count += 1; } }"
+            "function inc() returns (uint256) { count += 1; } }"
           )
         ]
   forM_ testCases $ verifyParser "function" pFunction
@@ -239,7 +221,7 @@ parseFunctionReturnsClauseSpec :: Spec
 parseFunctionReturnsClauseSpec = do
   describe "parse function modifiers with curly bracket and returns" $ do
     let str = "returns (uint256){"
-    let (result, s) = runParser pReturnsClause str
+    let (result, s) = runSParser pReturnsClause str
     it "could parse the args" $ do
       result `shouldBe` Right (STypeUint 256)
     it "should leave correct state" $ do

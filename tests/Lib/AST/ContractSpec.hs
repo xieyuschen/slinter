@@ -26,7 +26,7 @@ import Lib.AST.Model
       ),
     VisibilitySpecifier (VsPublic),
   )
-import Lib.Parser (runParser)
+import Lib.Parser (runSParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
@@ -45,7 +45,7 @@ parseContractSpec = do
           \       return count;\
           \    } \
           \}"
-    let (result, s) = runParser pContract constractStr
+    let (result, s) = runSParser pContract constractStr
     it "get the correct contract" $ do
       let fns =
             [ Function

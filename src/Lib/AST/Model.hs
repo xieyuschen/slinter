@@ -256,6 +256,7 @@ data SExpr
   | SExprT ExprTernary
   | SExprN ExprFnCall
   | SExprD Text -- delete keyword
+  | SExprEnd
   deriving (Show, Eq)
 
 data Operator

@@ -14,10 +14,11 @@ import Control.Monad.RWS (MonadReader (ask))
 import Control.Monad.State (MonadState (get, put, state))
 import Data.Char (isAlpha, isNumber)
 import Data.Maybe (fromMaybe, isJust)
-import Data.Text (Text)
+import Data.Text (Text, pack)
+import qualified Data.Text as T
+import Debug.Trace
 import GHC.Base
-  ( Alternative (many, (<|>)),
-    Applicative (liftA2, (<*)),
+  ( Applicative (liftA2, (<*)),
     Bool (True),
     Eq ((==)),
     Functor (fmap),
@@ -46,31 +47,28 @@ import Lib.Parser
   ( Parser,
     isUnderscore,
     pIdentifier,
-    pMany1,
     pManySpaces,
     pNumber,
-    pOne,
     pOneKeyword,
-    pTry,
-    pUntil,
-    runParser,
+    runSParser,
   )
+import Text.Parsec
 import Text.Read (readMaybe)
 import Prelude hiding (foldr)
 
 pType :: Parser SType
 pType = do
   pManySpaces
-    >> ( STypeMapping <$> pTry pTypeMapping
-           <|> pTry pTypeArray
-           <|> pTypeSimple
+    >> ( STypeMapping <$> try pTypeMapping
+           <|> try pTypeArray
+           <|> try pTypeSimple
        )
 
 pTypeArray :: Parser SType
 pTypeArray = do
   elemTp <- pManySpaces >> pTypeSimple
-  brackets <- pMany1 $ do
-    pOneKeyword leftSquareBracket >> optional pExpression <* pOneKeyword rightSquareBracket
+  brackets <- many1 $ do
+    pOneKeyword leftSquareBracket >> optionMaybe pExpression <* pOneKeyword rightSquareBracket
 
   return $
     foldl
@@ -100,14 +98,14 @@ pTypeMapping = do
       >> pType
 
   -- todo: check the key type should be built-in value type, bytes, string, or any contract or enum type
-  _ <- optional pIdentifier -- parse the name, todo: check whether need to store the name
+  _ <- optionMaybe pIdentifier -- parse the name, todo: check whether need to store the name
   valTpy <-
     pManySpaces
       >> pOneKeyword "=>"
       >> pManySpaces
       >> pType
 
-  _ <- optional pIdentifier >> pOneKeyword ")" >> pManySpaces
+  _ <- optionMaybe pIdentifier >> pOneKeyword ")" >> pManySpaces
   return
     Mapping
       { mKeyType = keyTyp,
@@ -156,23 +154,36 @@ pTypeStruct =
           <* ( pManySpaces
                  >> pOneKeyword "{"
                  >> pManySpaces
+                 >> many newline
              )
     )
-    ( many $
-        liftA2
-          (,)
-          ( pManySpaces
-              >> pType
-          )
-          ( pIdentifier
-              <* ( pManySpaces
-                     >> pOneKeyword ";"
-                 )
-          )
+    ( manyTill
+        ( liftA2
+            (,)
+            ( pManySpaces
+                >> pType
+            )
+            ( pIdentifier
+                <* ( pManySpaces
+                       >> pOneKeyword ";"
+                       >> many newline
+                       >> pManySpaces
+                   )
+            )
+        )
+        (pOneKeyword "}")
     )
-    <* ( pManySpaces
-           >> pOneKeyword "}"
-       )
+
+-- { GoLeft, GoRight, GoStraight, SitStill }
+enumContents :: Parser [Text]
+enumContents =
+  -- sepBy isn't enough here because we need to parse together
+  between
+    (pManySpaces *> char '{' <* pManySpaces)
+    (pManySpaces >> char '}' <* pManySpaces)
+    -- (sepBy pIdentifier (pManySpaces *> char ',' <* pManySpaces))
+    -- todo: write the differences between the seperator
+    (sepBy (pManySpaces *> pIdentifier <* pManySpaces) (char ','))
 
 -- 'enum ActionChoices { GoLeft, GoRight, GoStraight, SitStill }'
 pTypeEnum :: Parser STypeEnum
@@ -182,24 +193,12 @@ pTypeEnum = do
       >> pOneKeyword "enum"
       >> pManySpaces
       >> pIdentifier
-
-  enum1 <-
-    pManySpaces
-      >> pOneKeyword "{"
-      >> pManySpaces
-      >> pIdentifier
-  enums <-
-    many $
-      pManySpaces
-        >> pOneKeyword ","
-        >> pManySpaces
-        >> pIdentifier
-  _ <- pManySpaces >> pOneKeyword "}"
-
+        <* pManySpaces
+  enums <- enumContents
   return $
     STypeEnum
       { ename = enum_name,
-        eelems = enum1 : enums
+        eelems = enums
       }
 
 isValidDesc :: BitLengthDesc -> Bool
@@ -221,24 +220,24 @@ extractBitLengthWithDecimal _ = Nothing
 -- if it fails, it will treat the indentifier as a whole and parses a result without number part
 pTypeWithDesc :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithDesc =
-  pTry pTypeWithLength
-    <|> pTry pTypeWithLenDecimal
+  try pTypeWithLength
+    <|> try pTypeWithLenDecimal
     <|> fmap (,Nothing) pIdentifier
 
--- parse the following types: ["int", "uint", "fixed", "ufixed", "bytes"]
+-- parse the following types: ["int", "uint", "bytes"]
 pTypeWithLength :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithLength = do
-  prefix <- pOne isAlpha
+  prefix <- many1 letter
   guard $ prefix `elem` ["int", "uint", "bytes"]
-  l <- optional pBitLength
-  return (prefix, l)
+  l <- optionMaybe pBitLength
+  return (T.pack prefix, l)
 
 pTypeWithLenDecimal :: Parser (Text, Maybe BitLengthDesc)
 pTypeWithLenDecimal = do
-  prefix <- pOne isAlpha
+  prefix <- many1 letter
   guard $ prefix `elem` ["fixed", "ufixed"]
   l <- pBitLengthDecimal
-  return (prefix, Just l)
+  return (T.pack prefix, Just l)
 
 -- fixed-point format "MxN"
 pBitLengthDecimal :: Parser BitLengthDesc
@@ -286,7 +285,7 @@ pUFixed (s, bit) = do
 pAddress :: (Text, Maybe BitLengthDesc) -> Parser SType
 pAddress (s, bit) = do
   guard $ s == "address"
-  payable <- pManySpaces >> optional (pOneKeyword "payable")
+  payable <- pManySpaces >> optionMaybe (pOneKeyword "payable")
   return $ maybe STypeAddress (const STypePayableAddress) payable
 
 pStringType :: (Text, Maybe BitLengthDesc) -> Parser SType
@@ -302,16 +301,19 @@ pBytes (s, bit) = do
 
 pCustom :: (Text, Maybe BitLengthDesc) -> Parser SType
 pCustom (s, _) = do
-  -- built-in type should be supported already inside the
-  guard $ s `notElem` ["int", "uint", "fixed", "ufixed", "bytes"]
-  return $ STypeCustom s
+  -- built-in type should be supported already inside their own parser
+  -- if they fall into this parser, we should report an error to them because that's invalid
+  ( if s `elem` ["int", "uint", "fixed", "ufixed", "bytes"]
+      then fail "fail to define type with desired pattern"
+      else return $ STypeCustom s
+    )
 
 pTypeSimple :: Parser SType
 pTypeSimple =
   ( pTypeWithDesc >>= \desc ->
       asum $
         fmap
-          pTry
+          try
           [ pBool desc,
             pInt desc,
             pUInt desc,

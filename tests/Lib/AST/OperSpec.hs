@@ -199,4 +199,8 @@ parseOperatorSpec = do
 
   forM_ testCases $ verifyParser "arithmetic expression" pOperator
   -- in this turn, we add some suffix after the operator to make sure the parse works well
-  forM_ testCases $ verifyParser "arithmetic expression" pOperator . appendSuffix "1_suffix"
+  forM_ testCases $
+    verifyParser
+      "arithmetic expression with add-on"
+      pOperator
+      . appendSuffix "1_suffix"

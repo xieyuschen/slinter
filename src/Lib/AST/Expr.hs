@@ -2,7 +2,7 @@
 
 module Lib.AST.Expr where
 
-import Control.Applicative (Alternative ((<|>)), Applicative (liftA2), optional)
+import Control.Applicative (Applicative (liftA2), optional)
 import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (MonadState (get, put), guard)
@@ -10,57 +10,19 @@ import Data.Char (isSpace)
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Debug.Trace (trace)
 import Lib.AST.Model
-  ( DataLocation (..),
-    ExprBinary (ExprBinary),
-    ExprFnCall (..),
-    ExprIndex (ExprIndex, elemBase, elemIndex),
-    ExprSelection (ExprSelection, selectionBase, selectionField),
-    ExprTernary (..),
-    ExprUnary (..),
-    FnCallArgs (..),
-    Literal (..),
-    Operator (Minus),
-    SExpr (..),
-    SType,
-    colon,
-    leftCurlyBrace,
-    leftParenthesis,
-    leftSquareBracket,
-    rightCurlyBrace,
-    rightParenthesis,
-    rightSquareBracket,
-  )
 import Lib.AST.Oper
-  ( opRank10,
-    opRank11,
-    opRank12,
-    opRank13,
-    opRank2,
-    opRank3,
-    opRank4,
-    opRank5,
-    opRank6,
-    opRank7,
-    opRank8,
-    opRank9,
-    pOpRank,
-    pOpRankLast,
-    pOperator,
-  )
 import Lib.Parser
   ( Parser,
-    many,
     pBool,
     pIdentifier,
-    pMany1,
     pManySpaces,
     pNumber,
     pOneKeyword,
     pString,
-    pStringTo,
-    pTry,
   )
+import Text.Parsec
 
 ops :: [[Operator]]
 ops =
@@ -84,7 +46,9 @@ pExpression =
   foldr
     ( \pOp pExpr -> do
         left <- pExpr
-        rest <- many (pManySpaces >> ((,) <$> pTry pOp <*> pExpr))
+        rest <- many ((,) <$> try (pOp <* pManySpaces) <*> try pExpr <* pManySpaces)
+        trace ("expr:" ++ show left) $ pure ()
+        trace ("expr:" ++ show rest) $ pure ()
         return $
           foldl
             ( \acc (op, right) ->
@@ -98,20 +62,20 @@ pExpression =
 
 pBasicExpr :: Parser SExpr
 pBasicExpr =
-  pParenthesizedExpr
-    <|> SExprN <$> pNewCall
+  try pParenthesizedExpr
+    <|> SExprN <$> try pNewCall
     -- we decide to keep supporting the unary expression during parse stage,
     -- such as '123 + -x', where we will report error during syntax check
-    <|> SExprU <$> pUnaryExpr
-    <|> SExprF <$> pTry pFuncCall
+    <|> SExprU <$> try pUnaryExpr
+    <|> SExprF <$> try pFuncCall
     -- parse a function call first, if not parse it as a selection
-    <|> pTry pSelection
+    <|> try pSelection
     -- parse elem index after selection to solve a[x].y
-    <|> pTry pElemIndex
-    <|> SExprD <$> pDeleteExpr
-    <|> SExprT <$> pTry pExprTenary
-    <|> SExprL <$> pLiteral
-    <|> SExprVar <$> pIdentifier
+    <|> try pElemIndex
+    <|> SExprD <$> try pDeleteExpr
+    <|> SExprT <$> try pExprTenary
+    <|> SExprL <$> try pLiteral
+    <|> SExprVar <$> try pIdentifier
 
 pParenthesizedExpr :: Parser SExpr
 pParenthesizedExpr = do
@@ -137,12 +101,12 @@ pSelection = do
   base <-
     pManySpaces
       -- don't use pExpression, beacuse selection cases are limited
-      >> ( SExprF <$> pTry pFuncCall
-             <|> pTry pElemIndex
+      >> ( SExprF <$> try pFuncCall
+             <|> try pElemIndex
              <|> SExprVar <$> pIdentifier
          )
 
-  fields <- pMany1 $ pOneKeyword "." >> pIdentifier
+  fields <- many1 $ pOneKeyword "." >> pIdentifier
   return $
     foldl
       (\acc v -> SExprS $ ExprSelection {selectionBase = acc, selectionField = v})
@@ -152,9 +116,9 @@ pSelection = do
 pLiteral :: Parser Literal
 pLiteral =
   do
-    LNum <$> pNumber
-    <|> LBool <$> pBool
-    <|> LString <$> pString
+    LNum <$> try pNumber
+    <|> LBool <$> try pBool
+    <|> LString <$> try pString
 
 isUnaryOp :: Operator -> Bool
 isUnaryOp Minus = True
@@ -182,10 +146,10 @@ pFuncCall = do
     pManySpaces
       >> liftA2
         (,)
-        -- use pTry here to make sure the identifier and keyword are consumed in a batch
-        (optional $ pTry $ pIdentifier <* pOneKeyword ".")
+        -- use try here to make sure the identifier and keyword are consumed in a batch
+        (optionMaybe $ try $ pIdentifier <* pOneKeyword ".")
         pIdentifier
-  args <- pTry pFuncCallArgsNamedParameters <|> pTry pFuncCallArgsList
+  args <- try pFuncCallArgsNamedParameters <|> try pFuncCallArgsList
   return
     ExprFnCall
       { fnContractName = ct,
@@ -197,7 +161,11 @@ pFuncCallNamedParameterKeyValue :: Parser (Text, SExpr)
 pFuncCallNamedParameterKeyValue =
   liftA2
     (,)
-    (pManySpaces >> pIdentifier <* (pManySpaces >> pOneKeyword ":"))
+    ( pIdentifier
+        <* pManySpaces
+        <* pOneKeyword ":"
+        <* pManySpaces
+    )
     pExpression
 
 pFuncCallArgsNamedParameters :: Parser FnCallArgs
@@ -207,13 +175,13 @@ pFuncCallArgsNamedParameters = do
       >> pOneKeyword leftParenthesis
       >> pManySpaces
       >> pOneKeyword leftCurlyBrace
-      >> optional pFuncCallNamedParameterKeyValue
+      >> optionMaybe pFuncCallNamedParameterKeyValue
   args <-
     many
       ( pManySpaces
           >> pOneKeyword "," -- todo: this matching should be unified in a function in parser
           >> pManySpaces
-          >> pTry pFuncCallNamedParameterKeyValue
+          >> try pFuncCallNamedParameterKeyValue
       )
   _ <-
     pOneKeyword rightCurlyBrace
@@ -226,7 +194,7 @@ pFuncCallArgsList = do
   arg1 <-
     pManySpaces
       >> pOneKeyword leftParenthesis
-      >> optional pExpression
+      >> optionMaybe pExpression
   args <-
     many $
       pManySpaces
@@ -239,28 +207,28 @@ pFuncCallArgsList = do
 pElemIndex :: Parser SExpr
 pElemIndex = do
   elem <- SExprVar <$> (pManySpaces >> pIdentifier)
-  idxs <- pMany1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
+  idxs <- many1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
   return $ foldl (\acc idx -> SExprI $ ExprIndex {elemBase = acc, elemIndex = idx}) elem idxs
 
 pLocationModifer :: Parser DataLocation
 pLocationModifer =
-  pStringTo "memory" (const Memory)
-    <|> pStringTo "storage" (const Storage)
-    <|> pStringTo "calldata" (const Calldata)
+  (pOneKeyword "memory" >> return Memory)
+    <|> (pOneKeyword "storage" >> return Storage)
+    <|> (pOneKeyword "calldata" >> return Calldata)
 
 pExprTenary :: Parser ExprTernary
 pExprTenary = do
-  s <- get
+  s <- getInput
   let (cond, s') = T.break (== '?') s -- break the expression first to parse them one by one
   guard $ s' /= ""
-  put cond
+  setInput cond
   cond <-
     pManySpaces
       >> pExpression
         <* pManySpaces
-  leftS <- get
+  leftS <- getInput
   guard $ leftS == ""
-  put s' >> pManySpaces >> pOneKeyword "?"
+  setInput s' >> pManySpaces >> pOneKeyword "?"
 
   left <-
     pManySpaces

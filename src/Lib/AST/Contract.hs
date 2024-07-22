@@ -10,8 +10,7 @@ import Lib.AST.Function
   )
 import Lib.AST.Model
   ( Contract (..),
-    ContractField (CtComment, CtFunction, CtVariable),
-    StateVariable (..),
+    ContractField (CtComment, CtEmptyLine, CtFunction, CtVariable),
     keywordContract,
     leftCurlyBrace,
     rightCurlyBrace,
@@ -23,6 +22,8 @@ import Lib.Parser
     pManySpaces,
     pOneKeyword,
   )
+import Text.Parsec (manyTill, try)
+import Text.ParserCombinators.Parsec (newline)
 
 -- contract Counter {
 --     uint256 public count;
@@ -39,17 +40,19 @@ pContract = do
       >> pOneKeyword keywordContract
       >> pManySpaces
         *> pIdentifier
-        <* ( pManySpaces
-               >> pOneKeyword leftCurlyBrace
-               >> pManySpaces
-           )
+        <* pManySpaces
+        <* pManySpaces
+
   fields <-
-    many
-      ( fmap CtFunction pFunction
-          <|> fmap CtVariable pStateVariable
-          <|> fmap CtComment pComment
-      )
-      <* pOneKeyword rightCurlyBrace
+    pManySpaces
+      >> pOneKeyword leftCurlyBrace
+      >> manyTill
+        ( fmap CtFunction (try pFunction)
+            <|> fmap CtVariable (try pStateVariable)
+            <|> fmap CtComment (try pComment)
+            <|> (pManySpaces >> many newline >> return CtEmptyLine)
+        )
+        (pOneKeyword rightCurlyBrace)
 
   let fns = mapMaybe getCtFunction fields
   let vars = mapMaybe getCtVariable fields

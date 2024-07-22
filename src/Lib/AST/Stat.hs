@@ -2,8 +2,8 @@
 
 module Lib.AST.Stat where
 
-import Control.Applicative (Alternative ((<|>)), Applicative (..), optional)
-import Data.Maybe (fromMaybe, isJust)
+import Control.Applicative (liftA2)
+import Data.Maybe (fromMaybe)
 import Lib.AST.Comment (pComment)
 import Lib.AST.Expr (pExpression, pLocationModifer)
 import Lib.AST.Model
@@ -21,30 +21,31 @@ import Lib.Parser
     pIdentifier,
     pManySpaces,
     pOneKeyword,
-    pTry,
   )
+import Text.Parsec
 
 pAssignStat :: Parser StAssign
 pAssignStat =
   liftA2
     (\var expr -> StAssign {stAssignVarName = var, stAssignExpr = expr})
-    (pManySpaces >> pIdentifier <* (pManySpaces >> pOneKeyword "="))
+    (pIdentifier <* pManySpaces <* pOneKeyword "=" <* pManySpaces)
     pExpression
     <* pOneKeyword semicolon
 
 pStVarDefinition :: Parser StVarDefinition
 pStVarDefinition = do
   tp <- pType
-  mmemory <- optional pLocationModifer
+  mmemory <- optionMaybe pLocationModifer
   name <- pManySpaces >> pIdentifier
   expr <-
-    optional $
+    optionMaybe $
       pManySpaces
         >> pOneKeyword "="
         >> pManySpaces
         >> pExpression
   _ <- pOneKeyword semicolon
-  c <- pManySpaces >> optional pComment
+
+  c <- pManySpaces >> optionMaybe pComment
   return
     StVarDefinition
       { stVarType = tp,
@@ -58,16 +59,16 @@ pStVarDefinition = do
 pStateVariable :: Parser StateVariable
 pStateVariable = do
   tp <- pType
-  visual <- optional $ pTry pVisibilitySpecifier
+  visual <- optionMaybe $ try pVisibilitySpecifier
   name <- pManySpaces >> pIdentifier
   expr <-
-    optional $
+    optionMaybe $
       pManySpaces
-        >> pOneKeyword "="
-        >> pManySpaces
-        >> pExpression
+        *> pOneKeyword "="
+        *> pManySpaces
+        *> pExpression
   _ <- pOneKeyword semicolon
-  c <- pManySpaces >> optional pComment
+  c <- pManySpaces *> optionMaybe pComment
   return
     StateVariable
       { svType = tp,

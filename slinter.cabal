@@ -19,7 +19,8 @@ common common-depends
         transformers,
         text,
         bytestring,
-        hspec
+        hspec,
+        parsec ^>=3.1.16.1
 
 library internallib
     import: common-depends
@@ -58,14 +59,14 @@ test-suite tests
     hs-source-dirs: tests
     default-language: Haskell2010
     other-modules:
-       Lib.AST.FunctionSpec,
-       Lib.AST.ContractSpec,
-       Lib.AST.CommentSpec,
-       Lib.AST.TypeSpec,
-       Lib.AST.ExprSpec,
-       Lib.AST.StatSpec,
-       Lib.AST.OperSpec,
-       Lib.ParserSpec,
-       Lib.TestCommon,
+        Lib.AST.FunctionSpec,
+        Lib.AST.ContractSpec,
+        Lib.AST.CommentSpec,
+        Lib.AST.TypeSpec,
+        Lib.AST.ExprSpec,
+        Lib.AST.StatSpec,
+        Lib.AST.OperSpec,
+        Lib.TestCommon,
+        Lib.ParserSpec
     build-tool-depends: hspec-discover:hspec-discover == 2.*
     ghc-options:    -fforce-recomp -Wall -Werror

@@ -2,29 +2,28 @@
 
 module Lib.AST.Oper where
 
-import Control.Applicative (Alternative ((<|>)))
-import Control.Monad.Except (MonadError (throwError))
-import Control.Monad.State (MonadState (get, put), guard)
+import Control.Monad.State (guard)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Lib.AST.Model (Operator (..))
-import Lib.Parser (Parser, pManySpaces, pTry)
+import Lib.Parser (Parser, pManySpaces)
+import Text.Parsec
 
 pOperator3Char :: Parser Operator
 pOperator3Char = do
-  s <- get
+  s <- getInput
   guard $ T.length s >= 3 -- at least 3 characters
-  put $ T.drop 3 s
+  setInput $ T.drop 3 s
   case T.take 3 s of
     ">>=" -> return CompoundRightShift
     "<<=" -> return CompoundLeftShift
-    _ -> throwError "unsupported operator in three characters"
+    _ -> fail "unsupported operator in three characters"
 
 pOperator2Char :: Parser Operator
 pOperator2Char = do
-  s <- get
+  s <- getInput
   guard $ T.length s >= 2 -- at least 2 characters
-  put $ T.drop 2 s
+  setInput $ T.drop 2 s
   case T.take 2 s of
     "+=" -> return CompoundAddition
     "++" -> return Increment
@@ -45,13 +44,13 @@ pOperator2Char = do
     ">=" -> return ComparisionMoreEqual
     ">>" -> return ShiftRight
     "==" -> return LogicalEqual
-    _ -> throwError "unsupport operator in two characters"
+    _ -> fail "unsupport operator in two characters"
 
 pOperator1Char :: Parser Operator
 pOperator1Char = do
-  s <- get
+  s <- getInput
   guard $ not $ T.null s -- check whether the string has enough chars to consume
-  put $ T.drop 1 s
+  setInput $ T.drop 1 s
   case T.take 1 s of
     "+" -> return ArithmeticAddition
     "-" -> return Minus
@@ -65,14 +64,15 @@ pOperator1Char = do
     "|" -> return BitOr
     "<" -> return ComparisionLess
     ">" -> return ComparisionMore
-    _ -> throwError "unsupport operator in one character"
+    _ -> fail "unsupport operator in one character"
 
 pOperator :: Parser Operator
 pOperator = do
   pManySpaces
-    >> pTry pOperator3Char
-      <|> pTry pOperator2Char
-      <|> pTry pOperator1Char
+    >> ( try pOperator3Char
+           <|> try pOperator2Char
+           <|> try pOperator1Char
+       )
 
 -- we use the same rank mentioned in the documentation to refre the precedences among different
 -- operators, in the format of pOpRank{n} such as pOpRank1 and so on
@@ -85,6 +85,7 @@ opRank2 = [Increment, Decrement, LogicalNegation, BitNeg]
 
 opRank3 = [ArithmeticExp]
 
+opRank6 :: [Operator]
 opRank6 = [ShiftLeft, ShiftRight]
 
 opRank7 = [BitAnd]

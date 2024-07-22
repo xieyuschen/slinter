@@ -51,8 +51,8 @@ parseVarDefinitionSpec :: Spec
 parseVarDefinitionSpec = do
   let testCases =
         [ ( "uint256 public name = hello;",
-            Left "fail to find desired charactor: ';';",
-            "name = hello;"
+            Left "",
+            "uint256 public name = hello;"
           ),
           ( "fixed hello=2345;",
             Right
@@ -93,7 +93,7 @@ parseStateVarSpec = do
                 },
             ""
           ),
-          ( "uint256 public name; // 123daws",
+          ( "uint256 public name; // 123daws\n",
             Right
               StateVariable
                 { svVisibleSpecifier = VsPublic,
@@ -126,9 +126,10 @@ parseStateVarSpec = do
                 },
             ""
           ),
-          ( "fixed memory hello=2345;",
-            Left "fail to find desired charactor: ';';", -- state variable rejects the memory modifier
-            "hello=2345;"
+          -- state variable rejects the memory modifier
+          ( "fixed memory invalid_state_var=2345;",
+            Left "", --
+            "fixed memory invalid_state_var=2345;"
           )
         ]
   forM_ testCases $ verifyParser "state variable definition" pStateVariable
@@ -203,7 +204,7 @@ parseStatAssignSpec = do
           ),
           ( "owner = ctname.sender()",
             Left "fail to find desired charactor: ';';",
-            ""
+            "owner = ctname.sender()"
           )
         ]
 
