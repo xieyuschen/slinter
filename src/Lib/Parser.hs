@@ -5,8 +5,10 @@
 module Lib.Parser where
 
 import Control.Monad (guard)
+import Data.Char (chr)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Numeric (readHex)
 import Text.Parsec
 
 -- todo: support version range like 1.2.x, 1.x, 1.2.3 - 2.3.4 later
@@ -57,11 +59,21 @@ pMany1Stop p content = do
   setInput cur
   return results
 
--- todo: support unicode and hex, such as:
--- unicode"Hello 😃";
--- hex"0011223344556677"
+hexPairToChar :: String -> Char
+hexPairToChar hexPair =
+  let [(byte, "")] = readHex hexPair
+   in chr byte
+
+hexToString :: String -> String
+hexToString [] = []
+hexToString (x1 : x2 : xs) = hexPairToChar [x1, x2] : hexToString xs
+hexToString _ = error "Invalid hex string"
+
 pString :: Parser Text
-pString = T.pack <$> (char '\n' >> many (noneOf "\"") <* char '\n')
+pString =
+  (pOneKeyword "unicode" >> T.pack <$> (char '"' >> many (noneOf "\"") <* char '"'))
+    <|> (pOneKeyword "hex" >> T.pack . hexToString <$> (char '"' >> many (noneOf "\"") <* char '"'))
+    <|> T.pack <$> (char '"' >> many (noneOf "\"") <* char '"')
 
 pNumber :: Parser Int
 pNumber = read <$> many1 digit
