@@ -4,40 +4,7 @@ module Lib.AST.StatSpec (spec) where
 
 import Control.Monad (forM_)
 import Lib.AST.Model
-  ( DataLocation (Memory, Storage),
-    ExprBinary (ExprBinary, bOperator, leftOperand, rightOperand),
-    ExprFnCall (ExprFnCall, fnArguments, fnContractName, fnName),
-    ExprIndex (ExprIndex, elemBase, elemIndex),
-    ExprSelection (ExprSelection, selectionBase, selectionField),
-    FnCallArgs (FnCallArgsList),
-    Literal (LNum),
-    Operator (ArithmeticAddition, Minus),
-    SExpr (SExprB, SExprF, SExprI, SExprL, SExprS, SExprVar),
-    SType (STypeFixed, STypeUint),
-    StAssign (StAssign, stAssignExpr, stAssignVarName),
-    StVarDefinition
-      ( StVarDefinition,
-        stVarComment,
-        stVarExpr,
-        stVarLocation,
-        stVarName,
-        stVarType
-      ),
-    StateVariable
-      ( StateVariable,
-        svComment,
-        svName,
-        svType,
-        svVarExpr,
-        svVisibleSpecifier
-      ),
-    VisibilitySpecifier (VsInternal, VsPublic),
-  )
 import Lib.AST.Stat
-  ( pAssignStat,
-    pStVarDefinition,
-    pStateVariable,
-  )
 import Lib.TestCommon (verifyParser)
 import Test.Hspec (Spec)
 
@@ -46,6 +13,7 @@ spec = do
   parseStatAssignSpec
   parseVarDefinitionSpec
   parseStateVarSpec
+  parseStateIfElseSpec
 
 parseVarDefinitionSpec :: Spec
 parseVarDefinitionSpec = do
@@ -237,3 +205,361 @@ parseStatAssignSpec = do
         ]
 
   forM_ testCases $ verifyParser "assign statement" pAssignStat
+
+parseStateIfElseSpec :: Spec
+parseStateIfElseSpec = do
+  let testCases =
+        [ ( "if (amount > msg.value / 2 ) a=3;",
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          )
+                      ],
+                    stIfElse = []
+                  }
+              ),
+            ""
+          ),
+          ( "if (amount > msg.value / 2 ) a=3; a=4;",
+            -- a=3 belongs to the if scope, but a=4 not
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          )
+                      ],
+                    stIfElse = []
+                  }
+              ),
+            " a=4;"
+          ),
+          ( "if (amount > msg.value / 2 ) {a=3;}",
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          )
+                      ],
+                    stIfElse = []
+                  }
+              ),
+            ""
+          ),
+          ( "if (amount > msg.value / 2 ) {a=3; a=4;}",
+            -- a=3 belongs to the if scope, but a=4 not
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          ),
+                        StatAssign
+                          StAssign
+                            { stAssignVarName = "a",
+                              stAssignExpr = SExprL (LNum 4)
+                            }
+                      ],
+                    stIfElse = []
+                  }
+              ),
+            ""
+          ),
+          ( "if (amount > msg.value / 2 ) {a=3;} else { a=4;}",
+            -- a=3 belongs to the if scope, but a=4 not
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          )
+                      ],
+                    stIfElse =
+                      [ StatAssign
+                          StAssign
+                            { stAssignVarName = "a",
+                              stAssignExpr = SExprL (LNum 4)
+                            }
+                      ]
+                  }
+              ),
+            ""
+          ),
+          ( "if (amount > msg.value / 2 ) {a=3;} else if (amount > msg.value) { a=4;} else {a=5;}",
+            -- a=3 belongs to the if scope, but a=4 not
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatAssign
+                          ( StAssign
+                              { stAssignVarName = "a",
+                                stAssignExpr = SExprL (LNum 3)
+                              }
+                          )
+                      ],
+                    stIfElse =
+                      [ StatIfElse
+                          StstIfElse
+                            { stIfCond =
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprVar "amount",
+                                      rightOperand =
+                                        SExprS
+                                          ExprSelection
+                                            { selectionBase = SExprVar "msg",
+                                              selectionField = "value"
+                                            },
+                                      bOperator = ComparisionMore
+                                    },
+                              stIfThen =
+                                [ StatAssign
+                                    StAssign
+                                      { stAssignVarName = "a",
+                                        stAssignExpr = SExprL (LNum 4)
+                                      }
+                                ],
+                              stIfElse =
+                                [ StatAssign
+                                    StAssign
+                                      { stAssignVarName = "a",
+                                        stAssignExpr = SExprL (LNum 5)
+                                      }
+                                ]
+                            }
+                      ]
+                  }
+              ),
+            ""
+          ),
+          ( -- nested if-elseif-else inside an if clause
+            "if (amount > msg.value / 2 ) { \
+            \ if (amount > msg.value / 2 ) {a=3;} \
+            \ else if (amount > msg.value) { a=4;} \
+            \ else {a=5;} } \
+            \ else if (amount > msg.value) { a=4;} \
+            \ else {a=5;}",
+            -- a=3 belongs to the if scope, but a=4 not
+            Right
+              ( StstIfElse
+                  { stIfCond =
+                      SExprB
+                        ( ExprBinary
+                            { leftOperand = SExprVar "amount",
+                              rightOperand =
+                                SExprB
+                                  ( ExprBinary
+                                      { leftOperand = SExprS (ExprSelection {selectionBase = SExprVar "msg", selectionField = "value"}),
+                                        rightOperand = SExprL (LNum 2),
+                                        bOperator = ArithmeticDivision
+                                      }
+                                  ),
+                              bOperator = ComparisionMore
+                            }
+                        ),
+                    stIfThen =
+                      [ StatIfElse
+                          StstIfElse
+                            { stIfCond =
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprVar "amount",
+                                      rightOperand =
+                                        SExprB
+                                          ExprBinary
+                                            { leftOperand =
+                                                SExprS
+                                                  ExprSelection
+                                                    { selectionBase = SExprVar "msg",
+                                                      selectionField = "value"
+                                                    },
+                                              rightOperand = SExprL (LNum 2),
+                                              bOperator = ArithmeticDivision
+                                            },
+                                      bOperator = ComparisionMore
+                                    },
+                              stIfThen =
+                                [ StatAssign
+                                    StAssign
+                                      { stAssignVarName = "a",
+                                        stAssignExpr = SExprL (LNum 3)
+                                      }
+                                ],
+                              stIfElse =
+                                [ StatIfElse
+                                    StstIfElse
+                                      { stIfCond =
+                                          SExprB
+                                            ExprBinary
+                                              { leftOperand = SExprVar "amount",
+                                                rightOperand =
+                                                  SExprS
+                                                    ExprSelection
+                                                      { selectionBase = SExprVar "msg",
+                                                        selectionField = "value"
+                                                      },
+                                                bOperator = ComparisionMore
+                                              },
+                                        stIfThen =
+                                          [ StatAssign
+                                              StAssign
+                                                { stAssignVarName = "a",
+                                                  stAssignExpr = SExprL (LNum 4)
+                                                }
+                                          ],
+                                        stIfElse =
+                                          [ StatAssign
+                                              StAssign
+                                                { stAssignVarName = "a",
+                                                  stAssignExpr = SExprL (LNum 5)
+                                                }
+                                          ]
+                                      }
+                                ]
+                            }
+                      ],
+                    stIfElse =
+                      [ StatIfElse
+                          StstIfElse
+                            { stIfCond =
+                                SExprB
+                                  ExprBinary
+                                    { leftOperand = SExprVar "amount",
+                                      rightOperand =
+                                        SExprS
+                                          ExprSelection
+                                            { selectionBase = SExprVar "msg",
+                                              selectionField = "value"
+                                            },
+                                      bOperator = ComparisionMore
+                                    },
+                              stIfThen =
+                                [ StatAssign
+                                    StAssign
+                                      { stAssignVarName = "a",
+                                        stAssignExpr = SExprL (LNum 4)
+                                      }
+                                ],
+                              stIfElse =
+                                [ StatAssign
+                                    StAssign
+                                      { stAssignVarName = "a",
+                                        stAssignExpr = SExprL (LNum 5)
+                                      }
+                                ]
+                            }
+                      ]
+                  }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "single if statement" pStateIfElse

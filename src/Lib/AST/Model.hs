@@ -316,8 +316,15 @@ data StVarDefinition = StVarDefinition
   }
   deriving (Show, Eq)
 
+data StstIfElse = StstIfElse
+  { stIfCond :: SExpr,
+    stIfThen :: [Stat],
+    stIfElse :: [Stat]
+  }
+  deriving (Show, Eq)
+
 data Stat
   = StatAssign StAssign
   | StatVarDef StVarDefinition
-  | StatIf -- todo
+  | StatIfElse StstIfElse -- todo
   deriving (Show, Eq)
