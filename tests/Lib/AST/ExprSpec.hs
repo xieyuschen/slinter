@@ -264,7 +264,7 @@ parseLocationModifierSpec = do
             ""
           ),
           ( "wrong",
-            Left "fail to find desired charactor: 'memory';fail to find desired charactor: 'storage';fail to find desired charactor: 'calldata';",
+            Left ["\"w\"", "\"w\"", "\"w\"", "\"memory\"", "\"storage\"", "\"calldata\""],
             "wrong"
           )
         ]

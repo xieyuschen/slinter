@@ -178,7 +178,7 @@ parseSimpleTypeSpec = do
             ""
           ),
           ( "uint7",
-            Left "",
+            Left ["digit", "digit", "fail to define type with desired pattern", "fail to define type with desired pattern"],
             "uint7"
           ),
           ( "int128",
@@ -186,7 +186,7 @@ parseSimpleTypeSpec = do
             ""
           ),
           ( "int257",
-            Left "",
+            Left ["digit", "digit", "fail to define type with desired pattern", "fail to define type with desired pattern"],
             "int257"
           ),
           ( "custom8",
@@ -218,7 +218,7 @@ parseSimpleTypeSpec = do
             ""
           ),
           ( "fixed257x100",
-            Left "",
+            Left ["digit", "digit", "fail to define type with desired pattern", "fail to define type with desired pattern"],
             "fixed257x100"
           ),
           ( "address",
@@ -238,7 +238,7 @@ parseSimpleTypeSpec = do
             ""
           ),
           ( "bytes9",
-            Left "",
+            Left ["digit", "digit", "fail to define type with desired pattern", "fail to define type with desired pattern"],
             "bytes9"
           )
         ]
@@ -284,7 +284,7 @@ parseTypeEnumSpec = do
             ""
           ),
           ( "enum TEST { } test state",
-            Left "Failed to parse identifier",
+            Right (STypeEnum {ename = "TEST", eelems = []}),
             "test state"
           )
         ]
@@ -310,7 +310,7 @@ parseTypeAliasSpec = do
             ""
           ),
           ( "type is uint256",
-            Left "fail to find desired charactor: 'is';",
+            Left ["\"u\"", "\"u\"", "space", "\"is\""],
             "type is uint256"
           )
         ]
@@ -370,11 +370,11 @@ parseTypeStructureSpec = do
             whitespace
           ),
           ( "struct empty { \n uint128 price; address;}",
-            Left "fail to find desired charactor: '}';",
+            Left ["\";\"", "\";\"", "\";\"", "\";\"", "\";\"", "\";\"", "\";\"", "letter or digit", "\"_\"", "space", "\"payable\"", "space", "letter", "\"_\""],
             "struct empty { \n uint128 price; address;}"
           ),
           ( "struct {} test state",
-            Left "Failed to parse identifier",
+            Left ["\"{\"", "\"{\"", "\"{\"", "space", "letter", "\"_\""],
             "struct {} test state"
           )
         ]

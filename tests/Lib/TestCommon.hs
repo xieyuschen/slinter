@@ -2,19 +2,22 @@
 
 module Lib.TestCommon where
 
+import Data.Bifunctor (first)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Lib.Parser (Parser, runSParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
+import Text.Parsec.Error (errorMessages)
+import Text.ParserCombinators.Parsec.Error (messageString)
 
 -- import Text.Parsec (ParseError)
 -- import Text.Parsec.Error
 -- import Text.Parsec.Pos (newPos)
 
-appendSuffix :: Text -> (Text, Either Text a, Text) -> (Text, Either Text a, Text)
+appendSuffix :: Text -> (Text, Either [Text] a, Text) -> (Text, Either [Text] a, Text)
 appendSuffix s (input, expected, state) = (input <> s, expected, state <> s)
 
-verifyParser :: (Eq a, Show a) => Text -> Parser a -> (Text, Either Text a, Text) -> Spec
+verifyParser :: (Eq a, Show a) => Text -> Parser a -> (Text, Either [Text] a, Text) -> Spec
 verifyParser content parser (input, expectedResult, expectedState) = do
   describe (T.unpack $ "parse " <> content <> ": '" <> input <> "'") $ do
     let (result, s) = runSParser parser input
@@ -23,7 +26,15 @@ verifyParser content parser (input, expectedResult, expectedState) = do
       case expectedResult of
         Right r -> result `shouldBe` Right r
         -- todo: fix the error cases later
-        Left _ -> pure ()
+        Left _ ->
+          first
+            ( fmap T.pack
+                . filter (not . null)
+                . fmap messageString
+                . errorMessages
+            )
+            result
+            `shouldBe` expectedResult
     -- Left msg -> Left (newErrorMessage (Expect msg) pos) `shouldBe` result
     it "should leave correct state" $ do
       s `shouldBe` expectedState

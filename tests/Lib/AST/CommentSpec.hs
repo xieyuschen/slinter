@@ -33,7 +33,7 @@ parseCommentSpec = do
             ""
           ),
           ( "// helloworld _*&^",
-            Left "", -- no ending line, won't be treated as a comment
+            Left ["lf new-line", "crlf new-line"], -- no ending line, won't be treated as a comment
             "// helloworld _*&^"
           )
         ]

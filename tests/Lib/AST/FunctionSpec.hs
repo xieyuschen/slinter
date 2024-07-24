@@ -109,7 +109,7 @@ parseFunctionSignatureSpec = do
             " }"
           ),
           ( "function inc() returns (uint256) { count += 1; } }",
-            Left "visibility specifier should contain only one for each function",
+            Left ["\"r\"", "\"r\"", "space", "space", "visibility specifier should contain only one for each function"],
             "function inc() returns (uint256) { count += 1; } }"
           )
         ]

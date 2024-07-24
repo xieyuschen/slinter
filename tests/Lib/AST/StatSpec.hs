@@ -51,7 +51,7 @@ parseVarDefinitionSpec :: Spec
 parseVarDefinitionSpec = do
   let testCases =
         [ ( "uint256 public name = hello;",
-            Left "",
+            Left ["\"n\"", "\"n\"", "space", "\"=\""],
             "uint256 public name = hello;"
           ),
           ( "fixed hello=2345;",
@@ -128,7 +128,7 @@ parseStateVarSpec = do
           ),
           -- state variable rejects the memory modifier
           ( "fixed memory invalid_state_var=2345;",
-            Left "", --
+            Left ["\"i\"", "\"i\"", "space", "\"=\""],
             "fixed memory invalid_state_var=2345;"
           )
         ]
@@ -203,7 +203,35 @@ parseStatAssignSpec = do
             ""
           ),
           ( "owner = ctname.sender()",
-            Left "fail to find desired charactor: ';';",
+            Left
+              [ "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "space",
+                "\";\""
+              ],
             "owner = ctname.sender()"
           )
         ]
