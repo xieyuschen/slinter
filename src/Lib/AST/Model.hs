@@ -146,7 +146,7 @@ data VisibilitySpecifier
   deriving (Show, Eq)
 
 -- StateVariable is the state variable of a contract, which is stored in the blockchain
--- please differ it from the StVarDefinition where it could be temporary one,
+-- please differ it from the StVarDefStatement where it could be temporary one,
 -- and the storage place is determined by its keyword such as 'memory'
 data StateVariable = StateVariable
   { svVisibleSpecifier :: VisibilitySpecifier,
@@ -295,7 +295,7 @@ data Operator
   | Decrement -- --
   deriving (Show, Eq)
 
-data StAssign = StAssign
+data StAssignStatement = StAssignStatement
   { stAssignVarName :: Text,
     stAssignExpr :: SExpr
   }
@@ -305,9 +305,9 @@ data StAssign = StAssign
 data DataLocation = Memory | Storage | Calldata
   deriving (Show, Eq)
 
--- StVarDefinition is the normal variable, and the st means 'stat'
+-- StVarDefStatement is the normal variable, and the st means 'stat'
 -- such as 'uint memory name = 1+2;'
-data StVarDefinition = StVarDefinition
+data StVarDefStatement = StVarDefStatement
   { stVarType :: SType,
     stVarName :: Text,
     stVarLocation :: DataLocation,
@@ -316,15 +316,51 @@ data StVarDefinition = StVarDefinition
   }
   deriving (Show, Eq)
 
-data StstIfElse = StstIfElse
+data IfStatement = IfStatement
   { stIfCond :: SExpr,
     stIfThen :: [Stat],
     stIfElse :: [Stat]
   }
   deriving (Show, Eq)
 
+newtype BlockStatement = BlockStatement
+  { blockStats :: [Stat]
+  }
+  deriving (Show, Eq)
+
+data ForStatement = ForStatement
+  { forDecl :: Maybe StVarDefStatement,
+    forExprStat :: Maybe SExpr, -- expression might be empty
+    forCond :: Maybe SExpr,
+    forBody :: [Stat]
+  }
+  deriving (Show, Eq)
+
+data WhileStatement = WhileStatement
+  { whileCond :: SExpr,
+    whileBody :: [Stat]
+  }
+  deriving (Show, Eq)
+
+data DoWhileStatement = DoWhileStatement
+  { doWhileBody :: [Stat],
+    doWhileCond :: SExpr
+  }
+  deriving (Show, Eq)
+
 data Stat
-  = StatAssign StAssign
-  | StatVarDef StVarDefinition
-  | StatIfElse StstIfElse -- todo
+  = StatAssign StAssignStatement
+  | StatVarDef StVarDefStatement
+  | StatIf IfStatement
+  | StatFor ForStatement
+  | StatWhile WhileStatement
+  | StatBlock BlockStatement
+  | StatDoWhile DoWhileStatement
+  | StatContinue
+  | StatBreak
+  | StatTry
+  | StatReturn (Maybe SExpr)
+  | StatEmit
+  | StatRevert
+  | StatAssmbly
   deriving (Show, Eq)

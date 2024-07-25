@@ -9,12 +9,15 @@ import Lib.AST.Comment (pComment)
 import Lib.AST.Expr (pExpression, pLocationModifer)
 import Lib.AST.Model
   ( DataLocation (Storage),
-    StAssign (..),
-    StVarDefinition (..),
+    DoWhileStatement (DoWhileStatement, doWhileBody, doWhileCond),
+    ForStatement (..),
+    IfStatement (..),
+    StAssignStatement (..),
+    StVarDefStatement (..),
     Stat (..),
     StateVariable (..),
-    StstIfElse (..),
     VisibilitySpecifier (VsInternal),
+    WhileStatement (..),
     leftCurlyBrace,
     leftParenthesis,
     rightCurlyBrace,
@@ -34,21 +37,26 @@ import Text.Parsec
 
 pState :: Parser Stat
 pState =
-  do
-    StatAssign <$> try pAssignStat
-    <|> StatVarDef <$> try pStVarDefinition
-    <|> StatIfElse <$> try pStateIfElse
+  StatAssign <$> try pAssignStat
+    <|> StatVarDef <$> try pStVarDefStatement
+    <|> StatIf <$> try pIfStatement
+    <|> StatFor <$> try pForStatement
+    <|> StatWhile <$> try pWhileStatement
+    <|> StatDoWhile <$> try pDoWhileStatement
+    <|> try pContinue
+    <|> try pBreak
+    <|> try pReturn
 
-pAssignStat :: Parser StAssign
+pAssignStat :: Parser StAssignStatement
 pAssignStat =
   liftA2
-    (\var expr -> StAssign {stAssignVarName = var, stAssignExpr = expr})
+    (\var expr -> StAssignStatement {stAssignVarName = var, stAssignExpr = expr})
     (pIdentifier <* pManySpaces <* pOneKeyword "=" <* pManySpaces)
     pExpression
     <* pOneKeyword semicolon
 
-pStVarDefinition :: Parser StVarDefinition
-pStVarDefinition = do
+pStVarDefStatement :: Parser StVarDefStatement
+pStVarDefStatement = do
   tp <- pType
   mmemory <- optionMaybe pLocationModifer
   name <- pManySpaces >> pIdentifier
@@ -62,7 +70,7 @@ pStVarDefinition = do
 
   c <- pManySpaces >> optionMaybe pComment
   return
-    StVarDefinition
+    StVarDefStatement
       { stVarType = tp,
         stVarName = name,
         stVarExpr = expr,
@@ -93,8 +101,8 @@ pStateVariable = do
         svComment = c
       }
 
-pStateIfElse :: Parser StstIfElse
-pStateIfElse =
+pIfStatement :: Parser IfStatement
+pIfStatement =
   try pStateSingleIfStat
     <|> pStateComplexIfElse
 
@@ -117,9 +125,9 @@ pStateElse = do
         (pManySpaces *> pOneKeyword rightCurlyBrace <* pManySpaces)
         (many $ pState <* pManySpaces)
     -- we treat the else-if and else as a seperated if-else clause
-    Just _ -> fmap (: []) $ StatIfElse <$> pStateIfElse
+    Just _ -> fmap (: []) $ StatIf <$> pIfStatement
 
-pStateComplexIfElse :: Parser StstIfElse
+pStateComplexIfElse :: Parser IfStatement
 pStateComplexIfElse = do
   _ <-
     pManySpaces
@@ -139,7 +147,7 @@ pStateComplexIfElse = do
         (many $ pManySpaces *> pState <* pManySpaces)
   mayebElse <- optionMaybe pStateElse
   return
-    StstIfElse
+    IfStatement
       { stIfCond = cond,
         stIfThen = ifClauses,
         stIfElse = fromMaybe [] mayebElse
@@ -148,7 +156,7 @@ pStateComplexIfElse = do
 -- we parse the one line if without else and curly brackets
 -- if (amount > msg.value / 2 ether)
 --     revert("Not enough Ether provided.");
-pStateSingleIfStat :: Parser StstIfElse
+pStateSingleIfStat :: Parser IfStatement
 pStateSingleIfStat = do
   _ <-
     pManySpaces
@@ -161,8 +169,110 @@ pStateSingleIfStat = do
       (pManySpaces *> pExpression <* pManySpaces)
   stat <- pManySpaces *> pState
   return
-    StstIfElse
+    IfStatement
       { stIfCond = cond,
         stIfThen = [stat],
         stIfElse = []
+      }
+
+pContinue :: Parser Stat
+pContinue = pManySpaces >> pOneKeyword "continue" >> return StatContinue
+
+pBreak :: Parser Stat
+pBreak = pManySpaces >> pOneKeyword "break" >> return StatBreak
+
+pReturn :: Parser Stat
+pReturn =
+  pManySpaces
+    >> pOneKeyword "return"
+    >> pManySpaces
+    >> StatReturn
+      <$> optionMaybe pExpression
+      <* pManySpaces
+      <* pOneKeyword semicolon
+
+pForStatement :: Parser ForStatement
+pForStatement = do
+  _ <-
+    pManySpaces
+      *> pOneKeyword "for"
+      *> pManySpaces
+
+  (stat, expr, cond) <-
+    between
+      (pOneKeyword leftParenthesis)
+      (pOneKeyword rightParenthesis)
+      ( do
+          stat <- pManySpaces >> optionMaybe pStVarDefStatement
+          case stat of
+            Nothing -> pManySpaces *> pOneKeyword semicolon >> pure ()
+            Just _ -> pure ()
+          expr <- pManySpaces >> optionMaybe pExpression <* pManySpaces <* pOneKeyword semicolon
+          cond <- pManySpaces >> optionMaybe pExpression <* pManySpaces
+          return (stat, expr, cond)
+      )
+  body <-
+    pManySpaces
+      >> between
+        (pManySpaces *> pOneKeyword leftCurlyBrace <* pManySpaces)
+        (pManySpaces *> pOneKeyword rightCurlyBrace <* pManySpaces)
+        (many $ pState <* pManySpaces)
+  return
+    ForStatement
+      { forDecl = stat,
+        forExprStat = expr,
+        forCond = cond,
+        forBody = body
+      }
+
+pWhileStatement :: Parser WhileStatement
+pWhileStatement = do
+  _ <-
+    pManySpaces
+      *> pOneKeyword "while"
+      *> pManySpaces
+  cond <-
+    between
+      (pOneKeyword leftParenthesis)
+      (pOneKeyword rightParenthesis)
+      (pManySpaces >> pExpression <* pManySpaces)
+  body <-
+    pManySpaces
+      >> between
+        (pManySpaces *> pOneKeyword leftCurlyBrace <* pManySpaces)
+        (pManySpaces *> pOneKeyword rightCurlyBrace <* pManySpaces)
+        (many $ pState <* pManySpaces)
+  return
+    WhileStatement
+      { whileCond = cond,
+        whileBody = body
+      }
+
+pDoWhileStatement :: Parser DoWhileStatement
+pDoWhileStatement = do
+  _ <-
+    pManySpaces
+      *> pOneKeyword "do"
+      *> pManySpaces
+  body <-
+    pManySpaces
+      >> between
+        (pManySpaces *> pOneKeyword leftCurlyBrace <* pManySpaces)
+        (pManySpaces *> pOneKeyword rightCurlyBrace <* pManySpaces)
+        (many $ pState <* pManySpaces)
+
+  cond <-
+    pManySpaces
+      *> pOneKeyword "while"
+      *> pManySpaces
+      *> between
+        (pOneKeyword leftParenthesis)
+        (pOneKeyword rightParenthesis)
+        (pManySpaces >> pExpression <* pManySpaces)
+      <* pOneKeyword semicolon
+
+  return
+    DoWhileStatement
+      { doWhileCond = cond,
+        doWhileBody = body
       }
