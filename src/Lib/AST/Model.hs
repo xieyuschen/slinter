@@ -348,9 +348,48 @@ data DoWhileStatement = DoWhileStatement
   }
   deriving (Show, Eq)
 
+-- try new Foo(_owner) returns (Foo foo) {
+--     // you can use variable foo here
+--     emit Log("Foo created");
+-- } catch Error(string memory reason) {
+--     // catch failing revert() and require()
+--     emit Log(reason);
+-- } catch (bytes memory reason) {
+--     // catch failing assert()
+--     emit LogBytes(reason);
+-- }
+data TryStatement = TryStatement
+  { tryExpr :: SExpr,
+    tryReturns :: [FnDeclArg],
+    tryBody :: [Stat],
+    tryCatches :: [CatchStatement]
+  }
+  deriving (Show, Eq)
+
+data CatchStatement = CatchStatement
+  { -- the identifier is optional
+    catchIdent :: Maybe Text,
+    catchParams :: [FnDeclArg],
+    catchBody :: [Stat]
+  }
+  deriving (Show, Eq)
+
+data EmitStatement = EmitStatement
+  { emitEventIdent :: Text,
+    emitCallArgs :: FnCallArgs
+  }
+  deriving (Show, Eq)
+
+data RevertStatement = RevertStatement
+  { revertEventIdent :: Text,
+    revertCallArgs :: FnCallArgs
+  }
+  deriving (Show, Eq)
+
 data Stat
   = StatAssign StAssignStatement
   | StatVarDef StVarDefStatement
+  | StatExpr SExpr
   | StatIf IfStatement
   | StatFor ForStatement
   | StatWhile WhileStatement
@@ -358,9 +397,9 @@ data Stat
   | StatDoWhile DoWhileStatement
   | StatContinue
   | StatBreak
-  | StatTry
+  | StatTry TryStatement
   | StatReturn (Maybe SExpr)
-  | StatEmit
-  | StatRevert
-  | StatAssmbly
+  | StatEmit EmitStatement
+  | StatRevert RevertStatement
+  | StatAssmbly -- don't support assmbly yet
   deriving (Show, Eq)

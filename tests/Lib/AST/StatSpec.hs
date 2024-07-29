@@ -17,6 +17,10 @@ spec = do
   parseForStatementSpec
   parseWhileStatementSpec
   parseDoWhileStatementSpec
+  parseTryCatchStatementSpec
+  parseCatchStatementSpec
+  parseEmitStatementSpec
+  parseRevertStatementSpec
 
 parseVarDefinitionSpec :: Spec
 parseVarDefinitionSpec = do
@@ -176,6 +180,7 @@ parseStatAssignSpec = do
           ( "owner = ctname.sender()",
             Left
               [ "space",
+                "space",
                 "space",
                 "space",
                 "space",
@@ -563,6 +568,10 @@ parseStateIfElseSpec = do
                   }
               ),
             ""
+          ),
+          ( "if (amount > msg.value / 2 ) {a=3;} elseif (amount > msg.value) { a=4;} else {a=5;}",
+            Left ["\"i\"", "\"i\"", "\"i\"", "space", "space", "\"{\""],
+            "if (amount > msg.value / 2 ) {a=3;} elseif (amount > msg.value) { a=4;} else {a=5;}"
           )
         ]
   forM_ testCases $ verifyParser "if statement" pIfStatement
@@ -729,3 +738,100 @@ parseDoWhileStatementSpec = do
           )
         ]
   forM_ testCases $ verifyParser "do-while statement" pDoWhileStatement
+
+parseTryCatchStatementSpec :: Spec
+parseTryCatchStatementSpec = do
+  let testCases =
+        [ ( "try Foo(_owner) returns (Foo foo) { a = 1; } catch (bytes memory reason) { a = 3 ;}",
+            Right
+              ( TryStatement
+                  { tryExpr = SExprF (ExprFnCall {fnContractName = Nothing, fnName = "Foo", fnArguments = FnCallArgsList [SExprVar "_owner"]}),
+                    tryReturns = [FnDeclArg {fnArgTp = STypeCustom "Foo", fnArgName = Just "foo", fnArgLocation = Storage}],
+                    tryBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 1)})],
+                    tryCatches =
+                      [ CatchStatement
+                          { catchIdent = Nothing,
+                            catchParams = [FnDeclArg {fnArgTp = STypeBytes 1, fnArgName = Just "reason", fnArgLocation = Memory}],
+                            catchBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 3)})]
+                          }
+                      ]
+                  }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "try-catch statement" pTryStatement
+
+parseCatchStatementSpec :: Spec
+parseCatchStatementSpec = do
+  let testCases =
+        [ ( "catch (bytes memory reason) { a = 3 ;}",
+            Right
+              ( CatchStatement
+                  { catchIdent = Nothing,
+                    catchParams = [FnDeclArg {fnArgTp = STypeBytes 1, fnArgName = Just "reason", fnArgLocation = Memory}],
+                    catchBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 3)})]
+                  }
+              ),
+            ""
+          ),
+          ( "catch Error(string memory reason) { a = 4; }",
+            Right
+              ( CatchStatement
+                  { catchIdent = Just "Error",
+                    catchParams = [FnDeclArg {fnArgTp = STypeString, fnArgName = Just "reason", fnArgLocation = Memory}],
+                    catchBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 4)})]
+                  }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "catch statement only" pCatchStatment
+
+parseEmitStatementSpec :: Spec
+parseEmitStatementSpec = do
+  let testCases =
+        [ ( "emit Hello(1,2,3)",
+            Right
+              ( EmitStatement
+                  { emitEventIdent = "Hello",
+                    emitCallArgs = FnCallArgsList [SExprL (LNum 1), SExprL (LNum 2), SExprL (LNum 3)]
+                  }
+              ),
+            ""
+          ),
+          ( "emit Deposit(\"deposit\",10000)",
+            Right
+              ( EmitStatement
+                  { emitEventIdent = "Deposit",
+                    emitCallArgs = FnCallArgsList [SExprL (LString "deposit"), SExprL (LNum 10000)]
+                  }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "catch statement only" pEmitStatement
+
+parseRevertStatementSpec :: Spec
+parseRevertStatementSpec = do
+  let testCases =
+        [ ( "revert Hello(1,2,3)",
+            Right
+              ( RevertStatement
+                  { revertEventIdent = "Hello",
+                    revertCallArgs = FnCallArgsList [SExprL (LNum 1), SExprL (LNum 2), SExprL (LNum 3)]
+                  }
+              ),
+            ""
+          ),
+          ( "revert Deposit(\"deposit\",10000)",
+            Right
+              ( RevertStatement
+                  { revertEventIdent = "Deposit",
+                    revertCallArgs = FnCallArgsList [SExprL (LString "deposit"), SExprL (LNum 10000)]
+                  }
+              ),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "catch statement only" pRevertStatement

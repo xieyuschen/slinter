@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Lib.TestCommon where
@@ -7,12 +8,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Lib.Parser (Parser, runSParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
-import Text.Parsec.Error (errorMessages)
-import Text.ParserCombinators.Parsec.Error (messageString)
-
--- import Text.Parsec (ParseError)
--- import Text.Parsec.Error
--- import Text.Parsec.Pos (newPos)
+import Text.Parsec.Error
 
 appendSuffix :: Text -> (Text, Either [Text] a, Text) -> (Text, Either [Text] a, Text)
 appendSuffix s (input, expected, state) = (input <> s, expected, state <> s)
@@ -26,7 +22,10 @@ verifyParser content parser (input, expectedResult, expectedState) = do
       case expectedResult of
         Right r -> result `shouldBe` Right r
         -- todo: fix the error cases later
-        Left _ ->
+        Left _ -> do
+          -- we use this line to debug when it failed to parse
+          -- the error is raised when the result it a Right instead of a Left
+          -- errorPos (fromLeft (error "") result) `shouldBe` initialPos ""
           first
             ( fmap T.pack
                 . filter (not . null)

@@ -47,7 +47,7 @@ executable slinter
     hs-source-dirs:  src/App
     default-language: Haskell2010
     ghc-options:    -fforce-recomp -Wall -Werror
-    
+
 test-suite tests
     import:           
         warnings,

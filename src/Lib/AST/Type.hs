@@ -40,13 +40,16 @@ import Lib.AST.Model
     STypeEnum (..),
     Structure (..),
     aSize,
+    leftCurlyBrace,
     leftSquareBracket,
     rightSquareBracket,
+    semicolon,
   )
 import Lib.Parser
   ( Parser,
     isUnderscore,
     pIdentifier,
+    pMany1Spaces,
     pManySpaces,
     pNumber,
     pOneKeyword,
@@ -129,12 +132,11 @@ pTypeAlias = do
           }
     )
     ( pManySpaces
-        >> pOneKeyword "type"
-        >> pManySpaces
-        >> pIdentifier
-          <* ( pManySpaces
-                 >> pOneKeyword "is"
-             )
+        *> pOneKeyword "type"
+        *> pMany1Spaces
+        *> pIdentifier
+        <* pMany1Spaces
+        <* pOneKeyword "is"
     )
     pType
 
@@ -148,14 +150,13 @@ pTypeStruct =
           }
     )
     ( pManySpaces
-        >> pOneKeyword "struct"
-        >> pManySpaces
-        >> pIdentifier
-          <* ( pManySpaces
-                 >> pOneKeyword "{"
-                 >> pManySpaces
-                 >> many newline
-             )
+        *> pOneKeyword "struct"
+        *> pMany1Spaces
+        *> pIdentifier
+        <* pManySpaces
+        <* pOneKeyword leftCurlyBrace
+        <* pManySpaces
+        <* many newline
     )
     ( manyTill
         ( liftA2
@@ -165,7 +166,7 @@ pTypeStruct =
             )
             ( pIdentifier
                 <* ( pManySpaces
-                       >> pOneKeyword ";"
+                       >> pOneKeyword semicolon
                        >> many newline
                        >> pManySpaces
                    )
@@ -191,7 +192,7 @@ pTypeEnum = do
   enum_name <-
     pManySpaces
       >> pOneKeyword "enum"
-      >> pManySpaces
+      >> pMany1Spaces
       >> pIdentifier
         <* pManySpaces
   enums <- enumContents

@@ -13,6 +13,7 @@ import Lib.AST.Model
   )
 import Lib.Parser
   ( Parser,
+    pMany1Spaces,
     pManySpaces,
     pOneKeyword,
     pReadline,
@@ -36,8 +37,8 @@ pPragma :: Parser Pragma
 pPragma = do
   pManySpaces
     >> pOneKeyword keywordPragma
-    >> pManySpaces
+    >> pMany1Spaces
     >> pOneKeyword keywordSolidity
-    >> pManySpaces
+    >> pMany1Spaces
     >> pSemVer
       <* pOneKeyword ";"

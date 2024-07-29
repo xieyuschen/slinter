@@ -48,6 +48,9 @@ pReadline = T.pack <$> manyTill anyChar (newline <|> crlf)
 pManySpaces :: Parser ()
 pManySpaces = skipMany space
 
+pMany1Spaces :: Parser ()
+pMany1Spaces = skipMany1 space
+
 pMany1Stop :: Parser a -> T.Text -> Parser [a]
 pMany1Stop p content = do
   bef <- manyTill anyChar $ string (T.unpack content)

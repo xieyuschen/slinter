@@ -17,6 +17,7 @@ import Lib.Parser
   ( Parser,
     pBool,
     pIdentifier,
+    pMany1Spaces,
     pManySpaces,
     pNumber,
     pOneKeyword,
@@ -93,7 +94,7 @@ pDeleteExpr :: Parser Text
 pDeleteExpr =
   pManySpaces
     >> pOneKeyword "delete"
-    >> pManySpaces
+    >> pMany1Spaces
     >> pIdentifier
 
 pSelection :: Parser SExpr
@@ -149,7 +150,7 @@ pFuncCall = do
         -- use try here to make sure the identifier and keyword are consumed in a batch
         (optionMaybe $ try $ pIdentifier <* pOneKeyword ".")
         pIdentifier
-  args <- try pFuncCallArgsNamedParameters <|> try pFuncCallArgsList
+  args <- pManySpaces *> try pFuncCallArgsNamedParameters <|> try pFuncCallArgsList
   return
     ExprFnCall
       { fnContractName = ct,
@@ -171,8 +172,7 @@ pFuncCallNamedParameterKeyValue =
 pFuncCallArgsNamedParameters :: Parser FnCallArgs
 pFuncCallArgsNamedParameters = do
   arg1 <-
-    pManySpaces
-      >> pOneKeyword leftParenthesis
+    pOneKeyword leftParenthesis
       >> pManySpaces
       >> pOneKeyword leftCurlyBrace
       >> optionMaybe pFuncCallNamedParameterKeyValue
@@ -189,11 +189,11 @@ pFuncCallArgsNamedParameters = do
       >> pOneKeyword rightParenthesis
   return $ FnCallArgsNamedParameters $ maybeToList arg1 ++ args
 
+-- todo: refine me with sepBy
 pFuncCallArgsList :: Parser FnCallArgs
 pFuncCallArgsList = do
   arg1 <-
-    pManySpaces
-      >> pOneKeyword leftParenthesis
+    pOneKeyword leftParenthesis
       >> optionMaybe pExpression
   args <-
     many $

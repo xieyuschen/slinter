@@ -111,8 +111,10 @@ pFunctionDecorators = do
   modifiers <-
     pManySpaces
       >> manyTill
+        -- it's fine to use pManySpaces because the pIdentifier will always consume the non-empty string,
+        -- we needn't to concern the two keywords are appened together like the keyword
         (pIdentifier <* pManySpaces)
-        (try $ lookAhead (pOneKeyword "returns" <|> pOneKeyword "{" <|> (eof $> "")))
+        (lookAhead $ try (pOneKeyword "returns" <|> pOneKeyword "{" <|> (eof $> "")))
 
   -- we need to filter the empty string,
   -- because we omit the empty string for space

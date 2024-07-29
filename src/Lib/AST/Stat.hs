@@ -3,19 +3,29 @@
 module Lib.AST.Stat where
 
 import Control.Applicative (liftA2)
+import Control.Exception (catches)
+import Control.Monad (when)
 import Control.Monad.Trans.Accum (look)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
+import Data.Text
 import Lib.AST.Comment (pComment)
-import Lib.AST.Expr (pExpression, pLocationModifer)
+import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifer)
+import Lib.AST.Function (pFunctionArgs)
 import Lib.AST.Model
-  ( DataLocation (Storage),
+  ( CatchStatement (..),
+    DataLocation (Storage),
     DoWhileStatement (DoWhileStatement, doWhileBody, doWhileCond),
+    EmitStatement (EmitStatement, emitCallArgs, emitEventIdent),
+    FnCallArgs,
     ForStatement (..),
     IfStatement (..),
+    RevertStatement (..),
+    SExpr,
     StAssignStatement (..),
     StVarDefStatement (..),
     Stat (..),
     StateVariable (..),
+    TryStatement (..),
     VisibilitySpecifier (VsInternal),
     WhileStatement (..),
     leftCurlyBrace,
@@ -29,6 +39,7 @@ import Lib.AST.Util (pVisibilitySpecifier)
 import Lib.Parser
   ( Parser,
     pIdentifier,
+    pMany1Spaces,
     pMany1Stop,
     pManySpaces,
     pOneKeyword,
@@ -46,6 +57,14 @@ pState =
     <|> try pContinue
     <|> try pBreak
     <|> try pReturn
+    <|> StatTry <$> try pTryStatement
+    <|> StatEmit <$> try pEmitStatement
+    <|> StatRevert <$> try pRevertStatement
+    -- put the expr statement at the last to avoid some keywords are treated as expression
+    <|> StatExpr <$> try pExprStatment
+
+pExprStatment :: Parser SExpr
+pExprStatment = pManySpaces *> pExpression <* pManySpaces <* pOneKeyword semicolon
 
 pAssignStat :: Parser StAssignStatement
 pAssignStat =
@@ -53,6 +72,7 @@ pAssignStat =
     (\var expr -> StAssignStatement {stAssignVarName = var, stAssignExpr = expr})
     (pIdentifier <* pManySpaces <* pOneKeyword "=" <* pManySpaces)
     pExpression
+    <* pManySpaces
     <* pOneKeyword semicolon
 
 pStVarDefStatement :: Parser StVarDefStatement
@@ -104,7 +124,7 @@ pStateVariable = do
 pIfStatement :: Parser IfStatement
 pIfStatement =
   try pStateSingleIfStat
-    <|> pStateComplexIfElse
+    <|> (pManySpaces >> pStateComplexIfElse)
 
 pStateElse :: Parser [Stat]
 pStateElse = do
@@ -112,10 +132,13 @@ pStateElse = do
   mayebElseIf <-
     pManySpaces
       *> pOneKeyword "else"
-      *> pManySpaces
+      -- we need to handle the cases: "else if", "else{"
+      -- but the case of "elseif" is invalid
       *> optionMaybe
         ( -- don't consume the if because the further parser requires the 'if' keyword
-          lookAhead (pOneKeyword "if")
+          -- it should have at least one space between else and if
+          -- use try to avoid the pMany1Spaces partially take effect
+          lookAhead $ try (pMany1Spaces *> pOneKeyword "if")
         )
   case mayebElseIf of
     -- no sub if-else, only have one else for the if-else clause
@@ -125,13 +148,15 @@ pStateElse = do
         (pManySpaces *> pOneKeyword rightCurlyBrace <* pManySpaces)
         (many $ pState <* pManySpaces)
     -- we treat the else-if and else as a seperated if-else clause
-    Just _ -> fmap (: []) $ StatIf <$> pIfStatement
+    -- at least
+    Just _ -> fmap (: []) $ StatIf <$> (pMany1Spaces >> pIfStatement)
 
+-- the caller should consume the leading spaces,
+-- sometimes the caller needs to ensure there must at least one leading space to avoid 'elseif' case
 pStateComplexIfElse :: Parser IfStatement
 pStateComplexIfElse = do
   _ <-
-    pManySpaces
-      *> pOneKeyword "if"
+    pOneKeyword "if"
       *> pManySpaces
   cond <-
     between
@@ -185,9 +210,8 @@ pReturn :: Parser Stat
 pReturn =
   pManySpaces
     >> pOneKeyword "return"
-    >> pManySpaces
     >> StatReturn
-      <$> optionMaybe pExpression
+      <$> optionMaybe (try $ pMany1Spaces *> pExpression)
       <* pManySpaces
       <* pOneKeyword semicolon
 
@@ -275,4 +299,90 @@ pDoWhileStatement = do
     DoWhileStatement
       { doWhileCond = cond,
         doWhileBody = body
+      }
+
+pTryStatement :: Parser TryStatement
+pTryStatement = do
+  expr <-
+    between
+      (pManySpaces >> pOneKeyword "try" >> pMany1Spaces)
+      (pMany1Spaces >> pOneKeyword "returns" >> pManySpaces)
+      pExpression
+  args <-
+    between
+      (pManySpaces *> pOneKeyword leftParenthesis <* pManySpaces)
+      (pManySpaces *> pOneKeyword rightParenthesis <* pManySpaces)
+      pFunctionArgs
+
+  body <-
+    between
+      (pManySpaces >> pOneKeyword leftCurlyBrace >> pManySpaces)
+      (pManySpaces >> pOneKeyword rightCurlyBrace >> pManySpaces)
+      (many pState)
+  catches <- many pCatchStatment
+  return
+    TryStatement
+      { tryExpr = expr,
+        tryReturns = args,
+        tryBody = body,
+        tryCatches = catches
+      }
+
+pCatchStatment :: Parser CatchStatement
+pCatchStatment = do
+  ident <-
+    pOneKeyword "catch"
+      >> pMany1Spaces
+      >> optionMaybe pIdentifier
+
+  -- consume more spaces only when the identifier is not exist
+  when (isNothing ident) pManySpaces
+
+  args <-
+    between
+      -- no leading space is allowed
+      -- because the identifier and parenthesis should be attached together
+      (pOneKeyword leftParenthesis <* pManySpaces)
+      (pManySpaces *> pOneKeyword rightParenthesis <* pManySpaces)
+      pFunctionArgs
+
+  body <-
+    between
+      (pManySpaces >> pOneKeyword leftCurlyBrace >> pManySpaces)
+      (pManySpaces >> pOneKeyword rightCurlyBrace >> pManySpaces)
+      (many $ pState <* pManySpaces)
+  return
+    CatchStatement
+      { catchIdent = ident,
+        catchParams = args,
+        catchBody = body
+      }
+
+-- defined for parsing 'emit' and 'revert' statement
+pEventCall :: Text -> Parser (Text, FnCallArgs)
+pEventCall keyword = do
+  ident <-
+    pManySpaces
+      >> pOneKeyword keyword
+      >> pMany1Spaces
+      >> pIdentifier
+  args <- pFuncCallArgsList
+  return (ident, args)
+
+pEmitStatement :: Parser EmitStatement
+pEmitStatement = do
+  (ident, args) <- pEventCall "emit"
+  return
+    EmitStatement
+      { emitEventIdent = ident,
+        emitCallArgs = args
+      }
+
+pRevertStatement :: Parser RevertStatement
+pRevertStatement = do
+  (ident, args) <- pEventCall "revert"
+  return
+    RevertStatement
+      { revertEventIdent = ident,
+        revertCallArgs = args
       }
