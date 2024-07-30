@@ -49,6 +49,7 @@ spec = do
   parseTypeWithBitLengthSpec
   parseSimpleTypeSpec
   parseArrayMapSpec
+  parseTypeCustomSpec
 
 parseArrayMapSpec :: Spec
 parseArrayMapSpec = do
@@ -404,3 +405,13 @@ parseTypeDifinitionSpec = do
           )
         ]
   forM_ testCases $ verifyParser "type definition" pTypeDefinition
+
+parseTypeCustomSpec :: Spec
+parseTypeCustomSpec = do
+  let testCases =
+        [ ( "BitMap",
+            Right (STypeCustom "BitMap"),
+            ""
+          )
+        ]
+  forM_ testCases $ verifyParser "type definition" pType

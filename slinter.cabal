@@ -27,7 +27,7 @@ library internallib
     exposed-modules:
         Lib.AST.Function,
         Lib.AST.Contract,
-        Lib.AST.Comment,
+        Lib.AST.Pragma,
         Lib.AST.Model,
         Lib.AST.Type,
         Lib.AST.Expr,
@@ -61,7 +61,7 @@ test-suite tests
     other-modules:
         Lib.AST.FunctionSpec,
         Lib.AST.ContractSpec,
-        Lib.AST.CommentSpec,
+        Lib.AST.PragmaSpec,
         Lib.AST.TypeSpec,
         Lib.AST.ExprSpec,
         Lib.AST.StatSpec,

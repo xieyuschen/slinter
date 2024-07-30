@@ -403,3 +403,45 @@ data Stat
   | StatRevert RevertStatement
   | StatAssmbly -- don't support assmbly yet
   deriving (Show, Eq)
+
+type ImportedPath = Text
+
+data ImportDirective
+  = ImportPath ImportedPath
+  | ImportPathWithAlias ImportedPath Text
+  | -- the first is symbol-aliases and the second is path
+    ImportSymbolAliases ImportedPath [SymbolAlias]
+  | ImportAllSymbols ImportedPath Text
+  deriving (Show, Eq)
+
+-- unit '{ identifier as identifier }' in import directive
+-- 'import { identifier as identifier } from path'
+data SymbolAlias = SymbolAlias
+  { symbolIdentifier :: Text,
+    symbolAlias :: Maybe Text
+  }
+  deriving (Show, Eq)
+
+type UserDefinableOperator = Operator
+
+type IdentifierPath = [Text]
+
+data UsingAlias = UsingAlias
+  { uaIdentifierPath :: IdentifierPath,
+    uaUserDefinableOper :: Maybe UserDefinableOperator
+  }
+  deriving (Show, Eq)
+
+data UsingField
+  = UFIdentifierPath [Text] -- a.b.c
+  | UFUsingAliases [UsingAlias]
+  deriving (Show, Eq)
+
+data UsingType = UsingTp SType | UsingAll deriving (Show, Eq)
+
+data UsingDirective = UsingDirective
+  { usingDirectiveField :: UsingField,
+    usingType :: UsingType,
+    usingGlobal :: Bool
+  }
+  deriving (Show, Eq)

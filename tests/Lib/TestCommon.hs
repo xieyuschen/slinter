@@ -10,6 +10,9 @@ import Lib.Parser (Parser, runSParser)
 import Test.Hspec (Spec, describe, it, shouldBe)
 import Text.Parsec.Error
 
+-- import Data.Either
+-- import Text.Parsec.Pos
+
 appendSuffix :: Text -> (Text, Either [Text] a, Text) -> (Text, Either [Text] a, Text)
 appendSuffix s (input, expected, state) = (input <> s, expected, state <> s)
 

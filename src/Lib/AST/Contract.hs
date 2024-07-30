@@ -2,7 +2,6 @@ module Lib.AST.Contract where
 
 import Control.Applicative (Alternative (many, (<|>)))
 import Data.Maybe (mapMaybe)
-import Lib.AST.Comment (pComment)
 import Lib.AST.Function
   ( getCtFunction,
     getCtVariable,
@@ -15,6 +14,7 @@ import Lib.AST.Model
     leftCurlyBrace,
     rightCurlyBrace,
   )
+import Lib.AST.Pragma (pComment)
 import Lib.AST.Stat (pStateVariable)
 import Lib.Parser
   ( Parser,

@@ -8,7 +8,6 @@ import Control.Monad (when)
 import Control.Monad.Trans.Accum (look)
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Text
-import Lib.AST.Comment (pComment)
 import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifer)
 import Lib.AST.Function (pFunctionArgs)
 import Lib.AST.Model
@@ -34,6 +33,7 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
+import Lib.AST.Pragma (pComment)
 import Lib.AST.Type (pType)
 import Lib.AST.Util (pVisibilitySpecifier)
 import Lib.Parser

@@ -33,7 +33,7 @@ parseStringSpec :: Spec
 parseStringSpec = do
   let testCases =
         [ ("\"hello\"", Right "hello", ""),
-          ("\"hello\"", Right "hello", ""),
+          ("\"./MyLibrary.sol\"", Right "./MyLibrary.sol", ""),
           ("unicode\"Hello 😃\"", Right "Hello 😃", ""),
           -- hex should be converted to the string correctly
           ("hex\"4142434445\"", Right "ABCDE", "")
