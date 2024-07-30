@@ -69,7 +69,7 @@ data AST
   | ASTPragma Pragma
   | ASTType SType
   | ASTFunction Function
-  | ASTModifier VisibilitySpecifier
+  | ASTModifier FnVisibility
   | ASTVariable StateVariable
   | ASTContract Contract
   | Struct
@@ -129,27 +129,58 @@ data ArrayN = ArrayN
   }
   deriving (Show, Eq)
 
+data FnName
+  = FnNormal Text
+  | FnFallback -- function fallback
+  | FnReceive -- function receive
+  deriving (Show, Eq)
+
 data Function = Function
-  { fmodifiers :: [Text],
-    fVisiblitySpecifier :: VisibilitySpecifier,
-    fname :: Text,
+  { fname :: FnName,
+    fnState :: FnStateMutability,
+    fnVisibility :: FnVisibility,
+    fnIsVirtual :: Bool,
     fargs :: [FnDeclArg],
     fReturnTyp :: Maybe SType
   }
   deriving (Show, Eq)
 
-data VisibilitySpecifier
-  = VsPublic -- could be accessed from within/derived contract and external
-  | VsPrivate -- only the contract it's defined in
-  | VsInternal -- within contract and from derived contracts
-  | VsExternal -- can only be called outside the contract
+data FnDecorator
+  = FnDecV FnVisibility
+  | FnDecS FnStateMutability
+  | FnDecMI
+  | FnDecVirtual
+  | FnDecOs
+  | FnDecSkip
+  deriving (Show, Eq)
+
+extractFnDecV :: [FnDecorator] -> [FnVisibility]
+extractFnDecV decorators = [v | FnDecV v <- decorators]
+
+extractFnDecS :: [FnDecorator] -> [FnStateMutability]
+extractFnDecS decorators = [v | FnDecS v <- decorators]
+
+-- function Visibility
+data FnVisibility
+  = FnPublic -- could be accessed from within/derived contract and external
+  | FnPrivate -- only the contract it's defined in
+  | FnInternal -- within contract and from derived contracts
+  | FnExternal -- can only be called outside the contract
+  deriving (Show, Eq)
+
+-- function state-mutability
+data FnStateMutability
+  = FnStatePure
+  | FnStateView
+  | FnStatePayable
+  | FnStateDefault -- no explicitly specify the state
   deriving (Show, Eq)
 
 -- StateVariable is the state variable of a contract, which is stored in the blockchain
 -- please differ it from the StVarDefStatement where it could be temporary one,
 -- and the storage place is determined by its keyword such as 'memory'
 data StateVariable = StateVariable
-  { svVisibleSpecifier :: VisibilitySpecifier,
+  { svVisibleSpecifier :: FnVisibility,
     svType :: SType,
     svName :: Text,
     svComment :: Maybe Comment, -- attached comment

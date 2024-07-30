@@ -51,17 +51,6 @@ pManySpaces = skipMany space
 pMany1Spaces :: Parser ()
 pMany1Spaces = skipMany1 space
 
-pMany1Stop :: Parser a -> T.Text -> Parser [a]
-pMany1Stop p content = do
-  bef <- manyTill anyChar $ string (T.unpack content)
-  cur <- getInput
-  setInput $ T.pack bef
-  results <- many1 p
-  s <- getInput
-  guard $ T.null s -- ensure all strings are consumed
-  setInput cur
-  return results
-
 hexPairToChar :: String -> Char
 hexPairToChar hexPair =
   let [(byte, "")] = readHex hexPair

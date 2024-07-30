@@ -48,8 +48,6 @@ pExpression =
     ( \pOp pExpr -> do
         left <- pExpr
         rest <- many ((,) <$> try (pOp <* pManySpaces) <*> try pExpr <* pManySpaces)
-        trace ("expr:" ++ show left) $ pure ()
-        trace ("expr:" ++ show rest) $ pure ()
         return $
           foldl
             ( \acc (op, right) ->
@@ -210,8 +208,8 @@ pElemIndex = do
   idxs <- many1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
   return $ foldl (\acc idx -> SExprI $ ExprIndex {elemBase = acc, elemIndex = idx}) elem idxs
 
-pLocationModifer :: Parser DataLocation
-pLocationModifer =
+pLocationModifier :: Parser DataLocation
+pLocationModifier =
   (pOneKeyword "memory" >> return Memory)
     <|> (pOneKeyword "storage" >> return Storage)
     <|> (pOneKeyword "calldata" >> return Calldata)

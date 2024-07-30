@@ -8,7 +8,7 @@ import Lib.AST.Expr
     pExprTenary,
     pExpression,
     pFuncCall,
-    pLocationModifer,
+    pLocationModifier,
     pSelection,
   )
 import Lib.AST.Model
@@ -268,7 +268,7 @@ parseLocationModifierSpec = do
             "wrong"
           )
         ]
-  forM_ testCases $ verifyParser "variable definition" pLocationModifer
+  forM_ testCases $ verifyParser "variable definition" pLocationModifier
 
 parseSelectionExprSepc :: Spec
 parseSelectionExprSepc = do

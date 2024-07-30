@@ -3,21 +3,21 @@
 module Lib.AST.Util where
 
 import Data.Text (Text)
-import Lib.AST.Model (VisibilitySpecifier (..))
+import Lib.AST.Model (FnVisibility (..))
 import Lib.Parser (Parser, pIdentifier, pManySpaces)
 
-pVisibilitySpecifier :: Parser VisibilitySpecifier
-pVisibilitySpecifier = do
+pFnVisibility :: Parser FnVisibility
+pFnVisibility = do
   ident <- pManySpaces >> pIdentifier
-  case toVisibilitySpecifier ident of
+  case toFnVisibility ident of
     Just specifier -> return specifier
     Nothing -> fail "not a valid visible specifier"
 
-toVisibilitySpecifier :: Text -> Maybe VisibilitySpecifier
-toVisibilitySpecifier str =
+toFnVisibility :: Text -> Maybe FnVisibility
+toFnVisibility str =
   case str of
-    "public" -> return VsPublic
-    "private" -> return VsPrivate
-    "internal" -> return VsInternal
-    "external" -> return VsExternal
+    "public" -> return FnPublic
+    "private" -> return FnPrivate
+    "internal" -> return FnInternal
+    "external" -> return FnExternal
     _ -> Nothing

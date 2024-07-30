@@ -8,7 +8,7 @@ import Control.Monad (when)
 import Control.Monad.Trans.Accum (look)
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Text
-import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifer)
+import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifier)
 import Lib.AST.Function (pFunctionArgs)
 import Lib.AST.Model
   ( CatchStatement (..),
@@ -16,6 +16,7 @@ import Lib.AST.Model
     DoWhileStatement (DoWhileStatement, doWhileBody, doWhileCond),
     EmitStatement (EmitStatement, emitCallArgs, emitEventIdent),
     FnCallArgs,
+    FnVisibility (FnInternal),
     ForStatement (..),
     IfStatement (..),
     RevertStatement (..),
@@ -25,7 +26,6 @@ import Lib.AST.Model
     Stat (..),
     StateVariable (..),
     TryStatement (..),
-    VisibilitySpecifier (VsInternal),
     WhileStatement (..),
     leftCurlyBrace,
     leftParenthesis,
@@ -35,12 +35,11 @@ import Lib.AST.Model
   )
 import Lib.AST.Pragma (pComment)
 import Lib.AST.Type (pType)
-import Lib.AST.Util (pVisibilitySpecifier)
+import Lib.AST.Util (pFnVisibility)
 import Lib.Parser
   ( Parser,
     pIdentifier,
     pMany1Spaces,
-    pMany1Stop,
     pManySpaces,
     pOneKeyword,
   )
@@ -78,7 +77,7 @@ pAssignStat =
 pStVarDefStatement :: Parser StVarDefStatement
 pStVarDefStatement = do
   tp <- pType
-  mmemory <- optionMaybe pLocationModifer
+  mmemory <- optionMaybe pLocationModifier
   name <- pManySpaces >> pIdentifier
   expr <-
     optionMaybe $
@@ -102,7 +101,7 @@ pStVarDefStatement = do
 pStateVariable :: Parser StateVariable
 pStateVariable = do
   tp <- pType
-  visual <- optionMaybe $ try pVisibilitySpecifier
+  visual <- optionMaybe $ try pFnVisibility
   name <- pManySpaces >> pIdentifier
   expr <-
     optionMaybe $
@@ -117,7 +116,7 @@ pStateVariable = do
       { svType = tp,
         svName = name,
         svVarExpr = expr,
-        svVisibleSpecifier = fromMaybe VsInternal visual,
+        svVisibleSpecifier = fromMaybe FnInternal visual,
         svComment = c
       }
 

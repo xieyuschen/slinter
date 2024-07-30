@@ -30,9 +30,10 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
-                  fVisiblitySpecifier = VsPublic,
-                  fmodifiers = ["pure"],
-                  fname = "inc"
+                  fnVisibility = FnPublic,
+                  fnState = FnStatePure,
+                  fnIsVirtual = False,
+                  fname = FnNormal "inc"
                 },
             ""
           ),
@@ -47,13 +48,14 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
-                  fVisiblitySpecifier = VsPublic,
-                  fmodifiers = ["pure"],
-                  fname = "inc"
+                  fnVisibility = FnPublic,
+                  fnState = FnStatePure,
+                  fnIsVirtual = False,
+                  fname = FnNormal "inc"
                 },
             ""
           ),
-          ( "function inc(string name, uint256 new_name) internal views returns (uint256) { count += 1; }",
+          ( "function inc(string name, uint256 new_name) internal view returns (uint256) { count += 1; }",
             Right
               Function
                 { fReturnTyp = Just $ STypeUint 256,
@@ -69,13 +71,14 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
-                  fVisiblitySpecifier = VsInternal,
-                  fmodifiers = ["views"],
-                  fname = "inc"
+                  fnVisibility = FnInternal,
+                  fnState = FnStateView,
+                  fnIsVirtual = False,
+                  fname = FnNormal "inc"
                 },
             ""
           ),
-          ( "function inc(string memory name, uint256 calldata new_name) internal views returns (uint256) { count += 1; }",
+          ( "function inc(string memory name, uint256 calldata new_name) internal view returns (uint256) { count += 1; }",
             Right
               Function
                 { fReturnTyp = Just $ STypeUint 256,
@@ -91,9 +94,10 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Calldata
                         }
                     ],
-                  fVisiblitySpecifier = VsInternal,
-                  fmodifiers = ["views"],
-                  fname = "inc"
+                  fnVisibility = FnInternal,
+                  fnState = FnStateView,
+                  fnIsVirtual = False,
+                  fname = FnNormal "inc"
                 },
             ""
           ),
@@ -102,15 +106,49 @@ parseFunctionSignatureSpec = do
               Function
                 { fReturnTyp = Just $ STypeUint 256,
                   fargs = [],
-                  fVisiblitySpecifier = VsExternal,
-                  fmodifiers = ["payable"],
-                  fname = "inc"
+                  fnVisibility = FnExternal,
+                  fnState = FnStatePayable,
+                  fnIsVirtual = False,
+                  fname = FnNormal "inc"
                 },
             " }"
           ),
-          ( "function inc() returns (uint256) { count += 1; } }",
-            Left ["\"r\"", "\"r\"", "space", "space", "visibility specifier should contain only one for each function"],
-            "function inc() returns (uint256) { count += 1; } }"
+          ( "function fallback() external payable returns (uint256) { count += 1; } }",
+            Right
+              Function
+                { fReturnTyp = Just $ STypeUint 256,
+                  fargs = [],
+                  fnVisibility = FnExternal,
+                  fnState = FnStatePayable,
+                  fnIsVirtual = False,
+                  fname = FnFallback
+                },
+            " }"
+          ),
+          ( "function receive() external returns (uint256) { count += 1; } }",
+            Right
+              Function
+                { fReturnTyp = Just $ STypeUint 256,
+                  fargs = [],
+                  fnVisibility = FnExternal,
+                  fnState = FnStateDefault,
+                  fnIsVirtual = False,
+                  fname = FnReceive
+                },
+            " }"
+          ),
+          ( -- todo: check whether it's valid if no decorator is used
+            "function inc() virtual returns (uint256) { count += 1; } }",
+            Right
+              Function
+                { fname = FnNormal "inc",
+                  fnVisibility = FnInternal,
+                  fnState = FnStateDefault,
+                  fnIsVirtual = True,
+                  fargs = [],
+                  fReturnTyp = Just (STypeUint 256)
+                },
+            " }"
           )
         ]
   forM_ testCases $ verifyParser "function" pFunction
@@ -193,25 +231,25 @@ parseFunctionQuotedArgs = do
           )
         ]
 
-  forM_ testCases $ verifyParser "function args quoted" pFunctionArgsQuoted
+  forM_ testCases $ verifyParser "function args quoted" pFunctionArgsInParentheses
 
 parseFunctionModifiers :: Spec
 parseFunctionModifiers = do
   let testCases =
-        [ ( "public  view",
-            Right ["public", "view"],
+        [ ( "public  view ",
+            Right [FnDecV FnPublic, FnDecS FnStateView],
             ""
           ),
           ( "public  view {",
-            Right ["public", "view"],
+            Right [FnDecV FnPublic, FnDecS FnStateView],
             "{"
           ),
           ( "public {",
-            Right ["public"],
+            Right [FnDecV FnPublic],
             "{"
           ),
           ( "public  view returns {",
-            Right ["public", "view"],
+            Right [FnDecV FnPublic, FnDecS FnStateView],
             "returns {"
           )
         ]

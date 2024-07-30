@@ -60,7 +60,7 @@ parseStateVarSpec = do
         [ ( "uint256 public name;",
             Right
               StateVariable
-                { svVisibleSpecifier = VsPublic,
+                { svVisibleSpecifier = FnPublic,
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Nothing,
@@ -71,7 +71,7 @@ parseStateVarSpec = do
           ( "uint256 public name; // 123daws\n",
             Right
               StateVariable
-                { svVisibleSpecifier = VsPublic,
+                { svVisibleSpecifier = FnPublic,
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Just " 123daws",
@@ -82,7 +82,7 @@ parseStateVarSpec = do
           ( "uint256 public name = hello;",
             Right
               StateVariable
-                { svVisibleSpecifier = VsPublic,
+                { svVisibleSpecifier = FnPublic,
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Nothing,
@@ -93,7 +93,7 @@ parseStateVarSpec = do
           ( "fixed hello=2345;",
             Right
               StateVariable
-                { svVisibleSpecifier = VsInternal,
+                { svVisibleSpecifier = FnInternal,
                   svType = STypeFixed 128 18,
                   svName = "hello",
                   svComment = Nothing,
