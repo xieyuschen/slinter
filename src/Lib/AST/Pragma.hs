@@ -46,6 +46,7 @@ import Lib.AST.Model
   )
 import Lib.AST.Oper (pOperator)
 import Lib.AST.Type (pType)
+import Lib.AST.Util
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -235,9 +236,6 @@ toUserDefinableOperator o =
            ]
     then Just o
     else Nothing
-
-pIdentifierPath :: Parser IdentifierPath
-pIdentifierPath = sepBy1 pIdentifier (char '.')
 
 -- the 'a.b.c' part of using directive 'using a.b.c for Bitmap'
 -- and the curly quoted parts mentioned by pUsingFieldAliases

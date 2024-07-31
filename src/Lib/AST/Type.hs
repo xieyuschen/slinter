@@ -99,6 +99,7 @@ pTypeMapping = do
       >> pOneKeyword "mapping("
       >> pManySpaces
       >> pType
+        <* pManySpaces
 
   -- todo: check the key type should be built-in value type, bytes, string, or any contract or enum type
   _ <- optionMaybe pIdentifier -- parse the name, todo: check whether need to store the name
@@ -107,7 +108,7 @@ pTypeMapping = do
       >> pOneKeyword "=>"
       >> pManySpaces
       >> pType
-
+        <* pManySpaces
   _ <- optionMaybe pIdentifier >> pOneKeyword ")" >> pManySpaces
   return
     Mapping
@@ -122,6 +123,7 @@ pTypeDefinition =
   STypeAlias <$> pTypeAlias <|> STypeStructure <$> pTypeStruct
 
 -- 'type UFixed256x18 is uint256;'
+-- user-defined-value-type-definition
 pTypeAlias :: Parser SAlias
 pTypeAlias = do
   liftA2

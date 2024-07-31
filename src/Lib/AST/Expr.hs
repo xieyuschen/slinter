@@ -214,12 +214,6 @@ pElemIndex = do
   idxs <- many1 $ pOneKeyword leftSquareBracket >> pExpression <* pOneKeyword rightSquareBracket
   return $ foldl (\acc idx -> SExprI $ ExprIndex {elemBase = acc, elemIndex = idx}) elem idxs
 
-pLocationModifier :: Parser DataLocation
-pLocationModifier =
-  (pOneKeyword "memory" $> Memory)
-    <|> (pOneKeyword "storage" $> Storage)
-    <|> (pOneKeyword "calldata" $> Calldata)
-
 pExprTenary :: Parser ExprTernary
 pExprTenary = do
   s <- getInput

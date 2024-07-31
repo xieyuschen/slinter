@@ -60,7 +60,7 @@ parseStateVarSpec = do
         [ ( "uint256 public name;",
             Right
               StateVariable
-                { svVisibleSpecifier = FnPublic,
+                { svConstrains = [SVarPublic],
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Nothing,
@@ -68,10 +68,10 @@ parseStateVarSpec = do
                 },
             ""
           ),
-          ( "uint256 public name; // 123daws\n",
+          ( "uint256 transient name; // 123daws\n",
             Right
               StateVariable
-                { svVisibleSpecifier = FnPublic,
+                { svConstrains = [SVarTransient],
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Just " 123daws",
@@ -79,10 +79,10 @@ parseStateVarSpec = do
                 },
             ""
           ),
-          ( "uint256 public name = hello;",
+          ( "uint256 constant name = hello;",
             Right
               StateVariable
-                { svVisibleSpecifier = FnPublic,
+                { svConstrains = [SVarConstant],
                   svType = STypeUint 256,
                   svName = "name",
                   svComment = Nothing,
@@ -93,13 +93,28 @@ parseStateVarSpec = do
           ( "fixed hello=2345;",
             Right
               StateVariable
-                { svVisibleSpecifier = FnInternal,
+                { svConstrains = [SVarInternal],
                   svType = STypeFixed 128 18,
                   svName = "hello",
                   svComment = Nothing,
                   svVarExpr = Just (SExprL (LNum 2345))
                 },
             ""
+          ),
+          ( "uint256 name;",
+            Right
+              StateVariable
+                { svConstrains = [SVarInternal],
+                  svType = STypeUint 256,
+                  svName = "name",
+                  svComment = Nothing,
+                  svVarExpr = Nothing
+                },
+            ""
+          ),
+          ( "uint256 constant name;",
+            Left ["\"n\"", "\"n\"", "\"n\"", "\"n\"", "\"n\"", "\"n\"", "\"n\"", "\"public\"", "\"private\"", "\"internal\"", "\"constant\"", "\"override\"", "\"immutable\"", "\"transient\"", "constant must be initialized"],
+            "uint256 constant name;"
           ),
           -- state variable rejects the memory modifier
           ( "fixed memory invalid_state_var=2345;",

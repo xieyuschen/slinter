@@ -5,10 +5,12 @@ module Lib.AST.Stat where
 import Control.Applicative (liftA2)
 import Control.Exception (catches)
 import Control.Monad (when)
+import Control.Monad.Cont (guard)
 import Control.Monad.Trans.Accum (look)
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isNothing, listToMaybe)
 import Data.Text (Text)
-import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifier)
+import Debug.Trace (trace)
+import Lib.AST.Expr (pExpression, pFuncCallArgsList)
 import Lib.AST.Model
   ( CatchStatement (..),
     DataLocation (Storage),
@@ -24,6 +26,7 @@ import Lib.AST.Model
     StVarDefStatement (..),
     Stat (..),
     StateVariable (..),
+    StateVariableConstrain (..),
     TryStatement (..),
     WhileStatement (..),
     leftCurlyBrace,
@@ -34,7 +37,11 @@ import Lib.AST.Model
   )
 import Lib.AST.Pragma (pComment)
 import Lib.AST.Type (pType)
-import Lib.AST.Util (pFnDeclVisibility, pFunctionArgs)
+import Lib.AST.Util
+  ( pFunctionArgs,
+    pLocationModifier,
+    pStateVariableConstrain,
+  )
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -44,24 +51,26 @@ import Lib.Parser
   )
 import Text.Parsec
   ( between,
+    getInput,
     lookAhead,
     many,
     optionMaybe,
+    sepBy,
     try,
     (<|>),
   )
 
 pState :: Parser Stat
 pState =
-  StatAssign <$> try pAssignStat
+  try pContinue
+    <|> try pBreak
+    <|> try pReturn
+    <|> StatAssign <$> try pAssignStat
     <|> StatVarDef <$> try pStVarDefStatement
     <|> StatIf <$> try pIfStatement
     <|> StatFor <$> try pForStatement
     <|> StatWhile <$> try pWhileStatement
     <|> StatDoWhile <$> try pDoWhileStatement
-    <|> try pContinue
-    <|> try pBreak
-    <|> try pReturn
     <|> StatTry <$> try pTryStatement
     <|> StatEmit <$> try pEmitStatement
     <|> StatRevert <$> try pRevertStatement
@@ -105,9 +114,46 @@ pStVarDefStatement = do
 
 -- state varaible is stored in the chain storage, so it rejects the memory keyword
 pStateVariable :: Parser StateVariable
-pStateVariable = do
+pStateVariable =
+  try pConstStateVariable
+    <|> pStateVariableOptionalInit
+
+-- constant state variable must have an expression to evaluate for initialization
+pConstStateVariable :: Parser StateVariable
+pConstStateVariable = do
   tp <- pType
-  visual <- optionMaybe pFnDeclVisibility
+  cs <- many $ pStateVariableConstrain <* pMany1Spaces
+  guard (SVarConstant `elem` map (const SVarConstant) cs)
+  name <- pManySpaces >> pIdentifier
+  expr <-
+    pManySpaces
+      *> pOneKeyword "="
+      *> pManySpaces
+      *> pExpression
+  c <-
+    pOneKeyword semicolon
+      *> pManySpaces
+      *> optionMaybe pComment
+  return
+    StateVariable
+      { svType = tp,
+        svName = name,
+        svVarExpr = Just expr,
+        svConstrains = cs,
+        svComment = c
+      }
+
+pStateVariableOptionalInit :: Parser StateVariable
+pStateVariableOptionalInit = do
+  tp <- pType -- pType will try to consume all chars for identifier, needn't pMany1Spaces
+  cs <- many $ pStateVariableConstrain <* pMany1Spaces
+  -- when we found constant here, we can make sure the pConstStateVariable fails, so error report is necessary
+  when (SVarConstant `elem` cs) (fail "constant must be initialized")
+
+  let constrains = case cs of
+        [] -> [SVarInternal]
+        _ -> cs
+
   name <- pManySpaces >> pIdentifier
   expr <-
     optionMaybe $
@@ -122,7 +168,7 @@ pStateVariable = do
       { svType = tp,
         svName = name,
         svVarExpr = expr,
-        svVisibleSpecifier = fromMaybe FnInternal visual,
+        svConstrains = constrains,
         svComment = c
       }
 

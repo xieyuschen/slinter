@@ -21,8 +21,7 @@ import Data.Maybe (catMaybes, fromMaybe, isNothing, listToMaybe, mapMaybe, maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Debug.Trace
-import GHC.Base ()
-import Lib.AST.Expr (pExpression, pFnCallArgumentList, pLocationModifier)
+import Lib.AST.Expr (pExpression, pFnCallArgumentList)
 import Lib.AST.Model
   ( ContractField (CtFunction, CtVariable),
     DataLocation (Storage),
@@ -30,10 +29,10 @@ import Lib.AST.Model
     FnDecorator (..),
     FnModifierInvocation (..),
     FnName (..),
-    FnOverrideSpecifier,
     FnStateMutability (..),
     FnVisibility (..),
     Function (..),
+    OverrideSpecifier,
     SType,
     StateVariable,
     extractFnDecMI,
@@ -48,7 +47,6 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
-import Lib.AST.Pragma (pIdentifierPath)
 import Lib.AST.Stat (pState)
 import Lib.AST.Type (pType)
 import Lib.AST.Util
@@ -110,14 +108,6 @@ getCtVariable :: ContractField -> Maybe StateVariable
 getCtVariable (CtVariable v) = Just v
 getCtVariable _ = Nothing
 
-pModifier :: Parser String
-pModifier = do
-  modifier <- pManySpaces >> pIdentifier
-  case modifier of
-    "public" -> return "public"
-    "view" -> return "view"
-    _ -> error ""
-
 pFunctionReturnTypeWithQuote :: Parser SType
 pFunctionReturnTypeWithQuote =
   pManySpaces
@@ -138,19 +128,6 @@ pReturnsClause =
       *> pFunctionReturnTypeWithQuote
       <* pManySpaces
 
--- parse the '(name: uint)' as so on. it will consume the following spaces
-pFunctionArgsInParentheses :: Parser [FnDeclArg]
-pFunctionArgsInParentheses = do
-  fmap (fromMaybe []) $
-    pManySpaces
-      >> pOneKeyword leftParenthesis
-      >> pManySpaces
-      >> optionMaybe pFunctionArgs
-        <* ( pManySpaces
-               >> pOneKeyword rightParenthesis
-               >> pManySpaces
-           )
-
 -- parse the state-mutability of function definition
 pFnDeclStateMutability :: Parser FnStateMutability
 pFnDeclStateMutability =
@@ -169,24 +146,6 @@ pFnDeclModifierInvocation = do
         fnModifierInvocationPath = path
       }
 
--- whether the function is decorated by the 'virtual' keyword
-pFnDeclVirtual :: Parser FnDecorator
-pFnDeclVirtual = try (pOneKeyword "virtual") $> FnDecVirtual
-
-pFnDeclOverrideSpecifier :: Parser FnOverrideSpecifier
-pFnDeclOverrideSpecifier = do
-  paths <-
-    pOneKeyword "override"
-      *> optionMaybe
-        ( between
-            (pOneKeyword leftParenthesis >> pManySpaces)
-            (pManySpaces >> pOneKeyword rightParenthesis)
-            (sepBy (pManySpaces *> pIdentifierPath <* pManySpaces) $ char ',')
-        )
-  case paths of
-    Nothing -> return [] -- we encounter the key 'override', but the body is omitted
-    Just l -> return l
-
 -- parse all decorators(modifiers and visibility specifiers) separated by spaces into a list of string
 -- todo: this parser has a flaw that cannot parse the 'public  view' correctly due to the pMany1Spaces,
 --  however it's acceptable because this is not a valid syntax in solidity
@@ -197,7 +156,7 @@ pFunctionDecorators = do
       ( ( FnDecV <$> try pFnDeclVisibility
             <|> pFnDeclVirtual
             <|> (FnDecS <$> try pFnDeclStateMutability)
-            <|> (FnDecOs <$> try pFnDeclOverrideSpecifier)
+            <|> (FnDecOs <$> try pOverrideSpecifier)
             -- modifier invocation should be put at last,
             -- otherwise it will process the 'override' and 'virtual' as a modifier invocation,
             -- which is definitely wrong

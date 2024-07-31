@@ -8,7 +8,6 @@ import Lib.AST.Expr
     pExprTenary,
     pExpression,
     pFuncCall,
-    pLocationModifier,
     pSelection,
   )
 import Lib.AST.Model
@@ -29,6 +28,7 @@ import Lib.AST.Model
     Operator (ArithmeticAddition, ArithmeticDivision, ArithmeticExp, ArithmeticMultiplication, BitAnd, BitExor, BitNeg, BitOr, ComparisionLess, ComparisionLessEqual, ComparisionMore, ComparisionMoreEqual, LogicalAnd, LogicalEqual, LogicalInequal, LogicalNegation, LogicalOr, Minus, ShiftLeft, ShiftRight),
     SExpr (SExprB, SExprD, SExprF, SExprI, SExprL, SExprN, SExprParentheses, SExprS, SExprT, SExprU, SExprVar),
   )
+import Lib.AST.Util
 import Lib.TestCommon (verifyParser)
 import Test.Hspec (Spec)
 

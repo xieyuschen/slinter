@@ -34,6 +34,7 @@ library internallib
         Lib.AST.Stat,
         Lib.AST.Util,
         Lib.AST.Oper,
+        Lib.AST.Definition,
         Lib.Parser
     hs-source-dirs: src
 
@@ -66,6 +67,8 @@ test-suite tests
         Lib.AST.ExprSpec,
         Lib.AST.StatSpec,
         Lib.AST.OperSpec,
+        Lib.AST.UtilSpec,
+        Lib.AST.DefinitionSpec,
         Lib.TestCommon,
         Lib.ParserSpec
     build-tool-depends: hspec-discover:hspec-discover == 2.*

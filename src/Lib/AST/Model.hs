@@ -140,7 +140,7 @@ data Function = Function
     fnState :: FnStateMutability,
     fnVisibility :: FnVisibility,
     fnModifierInvocations :: [FnModifierInvocation],
-    fnFnOverrideSpecifier :: Maybe FnOverrideSpecifier,
+    fnFnOverrideSpecifier :: Maybe OverrideSpecifier,
     fnIsVirtual :: Bool,
     fargs :: [FnDeclArg],
     fnReturnTyp :: Maybe SType,
@@ -154,14 +154,14 @@ data FnModifierInvocation = FnModifierInvocation
   }
   deriving (Show, Eq)
 
-type FnOverrideSpecifier = [IdentifierPath]
+type OverrideSpecifier = [IdentifierPath]
 
 data FnDecorator
   = FnDecV FnVisibility
   | FnDecS FnStateMutability
   | FnDecMI FnModifierInvocation
   | FnDecVirtual
-  | FnDecOs FnOverrideSpecifier
+  | FnDecOs OverrideSpecifier
   deriving (Show, Eq)
 
 extractFnDecV :: [FnDecorator] -> [FnVisibility]
@@ -173,7 +173,7 @@ extractFnDecS decorators = [v | FnDecS v <- decorators]
 extractFnDecMI :: [FnDecorator] -> [FnModifierInvocation]
 extractFnDecMI decorators = [v | FnDecMI v <- decorators]
 
-extractFnDecOs :: [FnDecorator] -> [FnOverrideSpecifier]
+extractFnDecOs :: [FnDecorator] -> [OverrideSpecifier]
 extractFnDecOs decorators = [v | FnDecOs v <- decorators]
 
 -- function Visibility
@@ -192,11 +192,21 @@ data FnStateMutability
   | FnStateDefault -- no explicitly specify the state
   deriving (Show, Eq)
 
+data StateVariableConstrain
+  = SVarPublic
+  | SVarPrivate
+  | SVarInternal
+  | SVarConstant
+  | SvarOs OverrideSpecifier
+  | SVarImmutable
+  | SVarTransient
+  deriving (Show, Eq)
+
 -- StateVariable is the state variable of a contract, which is stored in the blockchain
 -- please differ it from the StVarDefStatement where it could be temporary one,
 -- and the storage place is determined by its keyword such as 'memory'
 data StateVariable = StateVariable
-  { svVisibleSpecifier :: FnVisibility,
+  { svConstrains :: [StateVariableConstrain],
     svType :: SType,
     svName :: Text,
     svComment :: Maybe Comment, -- attached comment
@@ -490,5 +500,29 @@ data UsingDirective = UsingDirective
   { usingDirectiveField :: UsingField,
     usingType :: UsingType,
     usingGlobal :: Bool
+  }
+  deriving (Show, Eq)
+
+-- modifier definition
+data ModifierDefinition = ModifierDefinition
+  { modifierName :: Text,
+    modifierParamList :: Maybe [FnDeclArg], -- modifier might not receive parameter list
+    modifierIsVirtual :: Bool,
+    modifierOverrideSpecifier :: Maybe OverrideSpecifier,
+    modifierBody :: Maybe [Stat] -- Nothing refers the modifier without a body
+  }
+  deriving (Show, Eq)
+
+data EventParameter = EventParameter
+  { eventParamType :: SType,
+    eventParamIndex :: Maybe Int,
+    eventParamIdent :: Maybe Text
+  }
+  deriving (Show, Eq)
+
+data EventDefinition = EventDefinition
+  { eventName :: Text,
+    eventParameters :: [EventParameter],
+    eventIsAnonymous :: Bool
   }
   deriving (Show, Eq)
