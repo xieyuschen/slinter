@@ -22,18 +22,22 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Debug.Trace
 import GHC.Base ()
-import Lib.AST.Expr (pExpression, pLocationModifier)
+import Lib.AST.Expr (pExpression, pFnCallArgumentList, pLocationModifier)
 import Lib.AST.Model
   ( ContractField (CtFunction, CtVariable),
     DataLocation (Storage),
     FnDeclArg (..),
     FnDecorator (..),
+    FnModifierInvocation (..),
     FnName (..),
+    FnOverrideSpecifier,
     FnStateMutability (..),
     FnVisibility (..),
     Function (..),
     SType,
     StateVariable,
+    extractFnDecMI,
+    extractFnDecOs,
     extractFnDecS,
     extractFnDecV,
     keywordFunction,
@@ -42,11 +46,61 @@ import Lib.AST.Model
     leftParenthesis,
     rightCurlyBrace,
     rightParenthesis,
+    semicolon,
   )
+import Lib.AST.Pragma (pIdentifierPath)
+import Lib.AST.Stat (pState)
 import Lib.AST.Type (pType)
-import Lib.AST.Util (toFnVisibility)
+import Lib.AST.Util
 import Lib.Parser
 import Text.Parsec
+
+pFunction :: Parser Function
+pFunction = do
+  name <-
+    pManySpaces
+      >> pOneKeyword keywordFunction
+      >> pMany1Spaces
+      >> pFunctionName
+  args <- pManySpaces >> pFunctionArgsInParentheses
+
+  -- todo: support custom modifiers as well
+  decorators <- pFunctionDecorators
+
+  -- guards the decorators satisify the function declaration specification
+  let visibility = extractFnDecV decorators
+      states = extractFnDecS decorators
+      mis = extractFnDecMI decorators
+      ospecifier = extractFnDecOs decorators
+  guard $ length visibility <= 1
+  guard $ length states <= 1
+  guard $ length states <= 1
+
+  optReturns <- optionMaybe pReturnsClause
+  fnBody <-
+    pManySpaces
+      *> pOneKeyword semicolon
+      $> Nothing
+      <|> Just
+        <$> between
+          (pOneKeyword leftCurlyBrace >> pManySpaces)
+          (pOneKeyword rightCurlyBrace)
+          (many $ pState <* pManySpaces)
+
+  -- why 'many anyChar' doesn't work?
+  return
+    ( Function
+        { fname = name,
+          fargs = args,
+          fnIsVirtual = FnDecVirtual `elem` decorators,
+          fnVisibility = fromMaybe FnInternal $ listToMaybe visibility,
+          fnState = fromMaybe FnStateDefault $ listToMaybe states,
+          fnModifierInvocations = mis,
+          fnFnOverrideSpecifier = listToMaybe ospecifier,
+          fnReturnTyp = optReturns,
+          fnBody = fnBody
+        }
+    )
 
 getCtFunction :: ContractField -> Maybe Function
 getCtFunction (CtFunction f) = Just f
@@ -63,26 +117,6 @@ pModifier = do
     "public" -> return "public"
     "view" -> return "view"
     _ -> error ""
-
-pFunctionArgs :: Parser [FnDeclArg]
-pFunctionArgs =
-  liftA2
-    (:)
-    com
-    (many $ pOneKeyword "," >> com)
-  where
-    com =
-      liftA3
-        ( \tp modifier name ->
-            FnDeclArg
-              { fnArgTp = tp,
-                fnArgName = name,
-                fnArgLocation = fromMaybe Storage modifier
-              }
-        )
-        pType
-        (optionMaybe $ pManySpaces >> pLocationModifier)
-        (optionMaybe $ pManySpaces >> pIdentifier)
 
 pFunctionReturnTypeWithQuote :: Parser SType
 pFunctionReturnTypeWithQuote =
@@ -117,15 +151,6 @@ pFunctionArgsInParentheses = do
                >> pManySpaces
            )
 
--- parse the visibility of function definition
-pFnDeclVisibility :: Parser FnVisibility
-pFnDeclVisibility =
-  do
-    try (pOneKeyword "public") $> FnPublic
-    <|> try (pOneKeyword "private") $> FnPrivate
-    <|> try (pOneKeyword "internal") $> FnInternal
-    <|> try (pOneKeyword "external") $> FnExternal
-
 -- parse the state-mutability of function definition
 pFnDeclStateMutability :: Parser FnStateMutability
 pFnDeclStateMutability =
@@ -134,40 +159,57 @@ pFnDeclStateMutability =
     <|> try (pOneKeyword "view") $> FnStateView
     <|> try (pOneKeyword "payable") $> FnStatePayable
 
--- todo: implement me
-pFnDeclModifierInvocation :: Parser Text
-pFnDeclModifierInvocation = return ""
+pFnDeclModifierInvocation :: Parser FnModifierInvocation
+pFnDeclModifierInvocation = do
+  path <- pIdentifierPath
+  args <- optionMaybe pFnCallArgumentList
+  return
+    FnModifierInvocation
+      { fnModifierInvocationArgs = args,
+        fnModifierInvocationPath = path
+      }
 
 -- whether the function is decorated by the 'virtual' keyword
 pFnDeclVirtual :: Parser FnDecorator
-pFnDeclVirtual = try (pOneKeyword "virtual") $> FnDecVirtual <|> return FnDecSkip
+pFnDeclVirtual = try (pOneKeyword "virtual") $> FnDecVirtual
 
--- todo: implement me
-pFnDeclOverrideSpecifier :: Parser Text
-pFnDeclOverrideSpecifier = return ""
+pFnDeclOverrideSpecifier :: Parser FnOverrideSpecifier
+pFnDeclOverrideSpecifier = do
+  paths <-
+    pOneKeyword "override"
+      *> optionMaybe
+        ( between
+            (pOneKeyword leftParenthesis >> pManySpaces)
+            (pManySpaces >> pOneKeyword rightParenthesis)
+            (sepBy (pManySpaces *> pIdentifierPath <* pManySpaces) $ char ',')
+        )
+  case paths of
+    Nothing -> return [] -- we encounter the key 'override', but the body is omitted
+    Just l -> return l
 
 -- parse all decorators(modifiers and visibility specifiers) separated by spaces into a list of string
 -- todo: this parser has a flaw that cannot parse the 'public  view' correctly due to the pMany1Spaces,
 --  however it's acceptable because this is not a valid syntax in solidity
 pFunctionDecorators :: Parser [FnDecorator]
 pFunctionDecorators = do
-  decorators <-
-    pManySpaces
-      *> manyTill
-        ( ( FnDecV <$> try pFnDeclVisibility
-              <|> (FnDecS <$> try pFnDeclStateMutability)
-              <|> try pFnDeclVirtual
-          )
-            <* pMany1Spaces
+  pManySpaces
+    *> manyTill
+      ( ( FnDecV <$> try pFnDeclVisibility
+            <|> pFnDeclVirtual
+            <|> (FnDecS <$> try pFnDeclStateMutability)
+            <|> (FnDecOs <$> try pFnDeclOverrideSpecifier)
+            -- modifier invocation should be put at last,
+            -- otherwise it will process the 'override' and 'virtual' as a modifier invocation,
+            -- which is definitely wrong
+            <|> (FnDecMI <$> try pFnDeclModifierInvocation)
         )
-        ( lookAhead $
-            try (pOneKeyword "returns")
-              <|> try (pOneKeyword "{")
-              <|> eof $> ""
-        )
-
-  -- we need to filter the FnDecSkip string,
-  return $ filter (/= FnDecSkip) decorators
+          <* pMany1Spaces
+      )
+      ( lookAhead $
+          try (pOneKeyword "returns")
+            <|> try (pOneKeyword "{")
+            <|> eof $> ""
+      )
 
 pFunctionName :: Parser FnName
 pFunctionName =
@@ -175,41 +217,3 @@ pFunctionName =
     pOneKeyword "fallback" $> FnFallback
     <|> pOneKeyword "receive" $> FnReceive
     <|> FnNormal <$> pIdentifier
-
-pFunction :: Parser Function
-pFunction = do
-  name <-
-    pManySpaces
-      >> pOneKeyword keywordFunction
-      >> pMany1Spaces
-      >> pFunctionName
-  args <- pManySpaces >> pFunctionArgsInParentheses
-
-  -- todo: support custom modifiers as well
-  decorators <- pFunctionDecorators
-  optReturns <- optionMaybe pReturnsClause
-
-  let visibility = extractFnDecV decorators
-  guard $ length visibility <= 1
-
-  let states = extractFnDecS decorators
-  guard $ length states <= 1
-
-  -- todo: parse function body
-  _ <-
-    pManySpaces
-      >> between
-        (pOneKeyword leftCurlyBrace)
-        (pOneKeyword rightCurlyBrace)
-        (many $ noneOf "}")
-  -- why 'many anyChar' doesn't work?
-  return
-    ( Function
-        { fname = name,
-          fargs = args,
-          fnIsVirtual = FnDecVirtual `elem` decorators,
-          fnVisibility = fromMaybe FnInternal $ listToMaybe visibility,
-          fnState = fromMaybe FnStateDefault $ listToMaybe states,
-          fReturnTyp = optReturns
-        }
-    )

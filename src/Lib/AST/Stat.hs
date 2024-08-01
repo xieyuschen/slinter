@@ -7,9 +7,8 @@ import Control.Exception (catches)
 import Control.Monad (when)
 import Control.Monad.Trans.Accum (look)
 import Data.Maybe (fromMaybe, isNothing)
-import Data.Text
+import Data.Text (Text)
 import Lib.AST.Expr (pExpression, pFuncCallArgsList, pLocationModifier)
-import Lib.AST.Function (pFunctionArgs)
 import Lib.AST.Model
   ( CatchStatement (..),
     DataLocation (Storage),
@@ -35,7 +34,7 @@ import Lib.AST.Model
   )
 import Lib.AST.Pragma (pComment)
 import Lib.AST.Type (pType)
-import Lib.AST.Util (pFnVisibility)
+import Lib.AST.Util (pFnDeclVisibility, pFunctionArgs)
 import Lib.Parser
   ( Parser,
     pIdentifier,
@@ -44,6 +43,13 @@ import Lib.Parser
     pOneKeyword,
   )
 import Text.Parsec
+  ( between,
+    lookAhead,
+    many,
+    optionMaybe,
+    try,
+    (<|>),
+  )
 
 pState :: Parser Stat
 pState =
@@ -101,7 +107,7 @@ pStVarDefStatement = do
 pStateVariable :: Parser StateVariable
 pStateVariable = do
   tp <- pType
-  visual <- optionMaybe $ try pFnVisibility
+  visual <- optionMaybe pFnDeclVisibility
   name <- pManySpaces >> pIdentifier
   expr <-
     optionMaybe $

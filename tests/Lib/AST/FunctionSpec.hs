@@ -22,7 +22,7 @@ parseFunctionSignatureSpec = do
         [ ( "function inc(string name) public pure { count += 1; }",
             Right
               Function
-                { fReturnTyp = Nothing,
+                { fnReturnTyp = Nothing,
                   fargs =
                     [ FnDeclArg
                         { fnArgTp = STypeString,
@@ -30,17 +30,30 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnPublic,
                   fnState = FnStatePure,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc"
+                  fname = FnNormal "inc",
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             ""
           ),
           ( "function inc(string) public pure { count += 1; }",
             Right
               Function
-                { fReturnTyp = Nothing,
+                { fnReturnTyp = Nothing,
                   fargs =
                     [ FnDeclArg
                         { fnArgTp = STypeString,
@@ -48,17 +61,30 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnPublic,
                   fnState = FnStatePure,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc"
+                  fname = FnNormal "inc",
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             ""
           ),
           ( "function inc(string name, uint256 new_name) internal view returns (uint256) { count += 1; }",
             Right
               Function
-                { fReturnTyp = Just $ STypeUint 256,
+                { fnReturnTyp = Just $ STypeUint 256,
                   fargs =
                     [ FnDeclArg
                         { fnArgTp = STypeString,
@@ -71,17 +97,30 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Storage
                         }
                     ],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnInternal,
                   fnState = FnStateView,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc"
+                  fname = FnNormal "inc",
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             ""
           ),
           ( "function inc(string memory name, uint256 calldata new_name) internal view returns (uint256) { count += 1; }",
             Right
               Function
-                { fReturnTyp = Just $ STypeUint 256,
+                { fnReturnTyp = Just $ STypeUint 256,
                   fargs =
                     [ FnDeclArg
                         { fnArgTp = STypeString,
@@ -94,46 +133,88 @@ parseFunctionSignatureSpec = do
                           fnArgLocation = Calldata
                         }
                     ],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnInternal,
                   fnState = FnStateView,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc"
+                  fname = FnNormal "inc",
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             ""
           ),
           ( "function inc() external payable returns (uint256) { count += 1; } }",
             Right
               Function
-                { fReturnTyp = Just $ STypeUint 256,
+                { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnExternal,
                   fnState = FnStatePayable,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc"
+                  fname = FnNormal "inc",
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             " }"
           ),
-          ( "function fallback() external payable returns (uint256) { count += 1; } }",
+          ( "function fallback() external payable returns (uint256);",
             Right
               Function
-                { fReturnTyp = Just $ STypeUint 256,
+                { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnExternal,
                   fnState = FnStatePayable,
                   fnIsVirtual = False,
-                  fname = FnFallback
+                  fname = FnFallback,
+                  fnBody = Nothing
                 },
-            " }"
+            ""
           ),
           ( "function receive() external returns (uint256) { count += 1; } }",
             Right
               Function
-                { fReturnTyp = Just $ STypeUint 256,
+                { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnVisibility = FnExternal,
                   fnState = FnStateDefault,
                   fnIsVirtual = False,
-                  fname = FnReceive
+                  fname = FnReceive,
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             " }"
           ),
@@ -144,14 +225,125 @@ parseFunctionSignatureSpec = do
                 { fname = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
                   fnIsVirtual = True,
                   fargs = [],
-                  fReturnTyp = Just (STypeUint 256)
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
                 },
             " }"
+          ),
+          ( "function inc() virtual modifierInvocation1 modifierInvocation1(owner) returns (uint256) ;",
+            Right
+              Function
+                { fname = FnNormal "inc",
+                  fnVisibility = FnInternal,
+                  fnState = FnStateDefault,
+                  fnModifierInvocations =
+                    [ FnModifierInvocation
+                        { fnModifierInvocationPath = ["modifierInvocation1"],
+                          fnModifierInvocationArgs = Nothing
+                        },
+                      FnModifierInvocation
+                        { fnModifierInvocationPath = ["modifierInvocation1"],
+                          fnModifierInvocationArgs = Just (FnCallArgsList [SExprVar "owner"])
+                        }
+                    ],
+                  fnFnOverrideSpecifier = Nothing,
+                  fnIsVirtual = True,
+                  fargs = [],
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody = Nothing
+                },
+            ""
+          ),
+          ( "function inc() override returns (uint256) { count += 1; } }",
+            Right
+              Function
+                { fname = FnNormal "inc",
+                  fnVisibility = FnInternal,
+                  fnState = FnStateDefault,
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Just [],
+                  fnIsVirtual = False,
+                  fargs = [],
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
+                },
+            " }"
+          ),
+          ( "function inc() override(a.b.c, a.b) returns (uint256) { count += 1; } }",
+            Right
+              Function
+                { fname = FnNormal "inc",
+                  fnVisibility = FnInternal,
+                  fnState = FnStateDefault,
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Just [["a", "b", "c"], ["a", "b"]],
+                  fnIsVirtual = False,
+                  fargs = [],
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody =
+                    Just
+                      [ StatExpr
+                          ( SExprB
+                              ExprBinary
+                                { leftOperand = SExprVar "count",
+                                  rightOperand = SExprL (LNum 1),
+                                  bOperator = CompoundAddition
+                                }
+                          )
+                      ]
+                },
+            " }"
+          ),
+          ( "function inc() virtual modifierInvocation1 override(a.b.c, a.b) modifierInvocation1(owner) returns (uint256);",
+            Right
+              Function
+                { fname = FnNormal "inc",
+                  fnVisibility = FnInternal,
+                  fnState = FnStateDefault,
+                  fnModifierInvocations =
+                    [ FnModifierInvocation
+                        { fnModifierInvocationPath = ["modifierInvocation1"],
+                          fnModifierInvocationArgs = Nothing
+                        },
+                      FnModifierInvocation
+                        { fnModifierInvocationPath = ["modifierInvocation1"],
+                          fnModifierInvocationArgs = Just (FnCallArgsList [SExprVar "owner"])
+                        }
+                    ],
+                  fnFnOverrideSpecifier = Just [["a", "b", "c"], ["a", "b"]],
+                  fnIsVirtual = True,
+                  fargs = [],
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody = Nothing
+                },
+            ""
           )
         ]
-  forM_ testCases $ verifyParser "function" pFunction
+  forM_ testCases $ verifyParser "whole function" pFunction
 
 parseFunctionQuotedArgs :: Spec
 parseFunctionQuotedArgs = do

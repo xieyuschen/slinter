@@ -7,6 +7,7 @@ import Control.Monad (guard)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (MonadState (get, put), guard)
 import Data.Char (isSpace)
+import Data.Functor (($>))
 import Data.Maybe (fromMaybe, maybeToList)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -139,6 +140,11 @@ pUnaryExpr = do
         uOperator = op
       }
 
+pFnCallArgumentList :: Parser FnCallArgs
+pFnCallArgumentList =
+  try pFuncCallArgsNamedParameters
+    <|> try pFuncCallArgsList
+
 pFuncCall :: Parser ExprFnCall
 pFuncCall = do
   (ct, fName) <-
@@ -148,7 +154,7 @@ pFuncCall = do
         -- use try here to make sure the identifier and keyword are consumed in a batch
         (optionMaybe $ try $ pIdentifier <* pOneKeyword ".")
         pIdentifier
-  args <- pManySpaces *> try pFuncCallArgsNamedParameters <|> try pFuncCallArgsList
+  args <- pManySpaces *> pFnCallArgumentList
   return
     ExprFnCall
       { fnContractName = ct,
@@ -210,9 +216,9 @@ pElemIndex = do
 
 pLocationModifier :: Parser DataLocation
 pLocationModifier =
-  (pOneKeyword "memory" >> return Memory)
-    <|> (pOneKeyword "storage" >> return Storage)
-    <|> (pOneKeyword "calldata" >> return Calldata)
+  (pOneKeyword "memory" $> Memory)
+    <|> (pOneKeyword "storage" $> Storage)
+    <|> (pOneKeyword "calldata" $> Calldata)
 
 pExprTenary :: Parser ExprTernary
 pExprTenary = do

@@ -139,19 +139,29 @@ data Function = Function
   { fname :: FnName,
     fnState :: FnStateMutability,
     fnVisibility :: FnVisibility,
+    fnModifierInvocations :: [FnModifierInvocation],
+    fnFnOverrideSpecifier :: Maybe FnOverrideSpecifier,
     fnIsVirtual :: Bool,
     fargs :: [FnDeclArg],
-    fReturnTyp :: Maybe SType
+    fnReturnTyp :: Maybe SType,
+    fnBody :: Maybe [Stat] -- Nothing refers to a function declaration without body
   }
   deriving (Show, Eq)
+
+data FnModifierInvocation = FnModifierInvocation
+  { fnModifierInvocationPath :: IdentifierPath,
+    fnModifierInvocationArgs :: Maybe FnCallArgs
+  }
+  deriving (Show, Eq)
+
+type FnOverrideSpecifier = [IdentifierPath]
 
 data FnDecorator
   = FnDecV FnVisibility
   | FnDecS FnStateMutability
-  | FnDecMI
+  | FnDecMI FnModifierInvocation
   | FnDecVirtual
-  | FnDecOs
-  | FnDecSkip
+  | FnDecOs FnOverrideSpecifier
   deriving (Show, Eq)
 
 extractFnDecV :: [FnDecorator] -> [FnVisibility]
@@ -159,6 +169,12 @@ extractFnDecV decorators = [v | FnDecV v <- decorators]
 
 extractFnDecS :: [FnDecorator] -> [FnStateMutability]
 extractFnDecS decorators = [v | FnDecS v <- decorators]
+
+extractFnDecMI :: [FnDecorator] -> [FnModifierInvocation]
+extractFnDecMI decorators = [v | FnDecMI v <- decorators]
+
+extractFnDecOs :: [FnDecorator] -> [FnOverrideSpecifier]
+extractFnDecOs decorators = [v | FnDecOs v <- decorators]
 
 -- function Visibility
 data FnVisibility
