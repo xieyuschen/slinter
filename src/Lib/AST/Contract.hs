@@ -1,15 +1,13 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib.AST.Contract where
 
 import Control.Applicative (Alternative (many, (<|>)))
-import Data.Maybe (mapMaybe)
-import Lib.AST.Function
-  ( getCtFunction,
-    getCtVariable,
-    pFunction,
-  )
+import Control.Monad (when)
+import Data.Maybe (fromMaybe, isJust, mapMaybe)
+import Lib.AST.Definition (pContractBody, pInheritanceSpecifier)
 import Lib.AST.Model
-  ( Contract (..),
-    ContractField (CtComment, CtEmptyLine, CtFunction, CtVariable),
+  ( ContractDefinition (..),
     keywordContract,
     leftCurlyBrace,
     rightCurlyBrace,
@@ -19,46 +17,42 @@ import Lib.AST.Stat (pStateVariable)
 import Lib.Parser
   ( Parser,
     pIdentifier,
+    pMany1Spaces,
     pManySpaces,
     pOneKeyword,
   )
-import Text.Parsec (manyTill, try)
-import Text.ParserCombinators.Parsec (newline)
+import Text.Parsec
 
--- contract Counter {
---     uint256 public count;
-
---     // Function to get the current count
---     function get() public view returns (uint256) {
---         return count;
---     }
--- }
-pContract :: Parser Contract
-pContract = do
-  contractName <-
+pContractDefinition :: Parser ContractDefinition
+pContractDefinition = do
+  -- if the abstract keyword exist, we must consume at least 1 space
+  abs <-
     pManySpaces
-      >> pOneKeyword keywordContract
-      >> pManySpaces
+      *> optionMaybe (try $ pOneKeyword "abstract")
+  when (isJust abs) pMany1Spaces
+  contractName <-
+    pOneKeyword keywordContract
+      >> pMany1Spaces
         *> pIdentifier
         <* pManySpaces
-        <* pManySpaces
+  inheriSpeciciers <-
+    optionMaybe $
+      pOneKeyword "is"
+        *> pMany1Spaces
+        *> sepBy
+          (pManySpaces *> pInheritanceSpecifier <* pManySpaces)
+          (char ',')
 
-  fields <-
+  body <-
     pManySpaces
-      >> pOneKeyword leftCurlyBrace
-      >> manyTill
-        ( fmap CtFunction (try pFunction)
-            <|> fmap CtVariable (try pStateVariable)
-            <|> fmap CtComment (try pComment)
-            <|> (pManySpaces >> many newline >> return CtEmptyLine)
-        )
-        (pOneKeyword rightCurlyBrace)
-
-  let fns = mapMaybe getCtFunction fields
-  let vars = mapMaybe getCtVariable fields
+      *> between
+        (pManySpaces >> pOneKeyword leftCurlyBrace >> pManySpaces)
+        (pManySpaces >> pOneKeyword rightCurlyBrace >> pManySpaces)
+        pContractBody
   return
-    Contract
-      { ctName = contractName,
-        ctFunctions = fns,
-        ctVariables = vars
+    ContractDefinition
+      { contractName = contractName,
+        contractIsAbstract = isJust abs,
+        contractInheritanceSpecifiers = fromMaybe [] inheriSpeciciers,
+        contractBody = body
       }

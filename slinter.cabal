@@ -21,7 +21,6 @@ common common-depends
         bytestring,
         hspec,
         parsec ^>=3.1.16.1
-
 library internallib
     import: common-depends
     exposed-modules:

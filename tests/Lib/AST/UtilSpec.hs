@@ -5,7 +5,7 @@ module Lib.AST.UtilSpec (spec) where
 import Control.Monad (forM_)
 import Lib.AST.Model
 import Lib.AST.Util
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec
 
 spec :: Spec
@@ -100,4 +100,4 @@ parseFunctionQuotedArgs = do
           )
         ]
 
-  forM_ testCases $ verifyParser "function args quoted" pFunctionArgsInParentheses
+  forM_ testCases $ exactlyParserVerifier "function args quoted" pFnDeclArgsInParentheses

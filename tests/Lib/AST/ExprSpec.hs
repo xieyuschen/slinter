@@ -29,7 +29,7 @@ import Lib.AST.Model
     SExpr (SExprB, SExprD, SExprF, SExprI, SExprL, SExprN, SExprParentheses, SExprS, SExprT, SExprU, SExprVar),
   )
 import Lib.AST.Util
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 
 spec :: Spec
@@ -151,7 +151,7 @@ parsePrecedenceExprSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "unary expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "unary expression" pExpression
 
 parseDeleteNewExprSpec :: Spec
 parseDeleteNewExprSpec = do
@@ -172,7 +172,7 @@ parseDeleteNewExprSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "unary expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "unary expression" pExpression
 
 parseTernaryExprSpec :: Spec
 parseTernaryExprSpec = do
@@ -246,7 +246,7 @@ parseTernaryExprSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "variable definition" pExprTenary
+  forM_ testCases $ exactlyParserVerifier "variable definition" pExprTenary
 
 parseLocationModifierSpec :: Spec
 parseLocationModifierSpec = do
@@ -268,7 +268,7 @@ parseLocationModifierSpec = do
             "wrong"
           )
         ]
-  forM_ testCases $ verifyParser "variable definition" pLocationModifier
+  forM_ testCases $ exactlyParserVerifier "variable definition" pLocationModifier
 
 parseSelectionExprSepc :: Spec
 parseSelectionExprSepc = do
@@ -328,7 +328,7 @@ parseSelectionExprSepc = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "selection expression" pSelection
+  forM_ testCases $ exactlyParserVerifier "selection expression" pSelection
 
 parseUnaryExpressionSpec :: Spec
 parseUnaryExpressionSpec = do
@@ -483,7 +483,7 @@ parseUnaryExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "unary expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "unary expression" pExpression
 
 parseShiftExpressionSpec :: Spec
 parseShiftExpressionSpec = do
@@ -545,7 +545,7 @@ parseShiftExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "shift expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "shift expression" pExpression
 
 parseComparisionExpressionSpec :: Spec
 parseComparisionExpressionSpec = do
@@ -627,7 +627,7 @@ parseComparisionExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "comparision expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "comparision expression" pExpression
 
 parseBitExpressionSpec :: Spec
 parseBitExpressionSpec = do
@@ -709,7 +709,7 @@ parseBitExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "bit expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "bit expression" pExpression
 
 parseArithemeticExpressionSpec :: Spec
 parseArithemeticExpressionSpec = do
@@ -816,7 +816,7 @@ parseArithemeticExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "arithmetic expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "arithmetic expression" pExpression
 
 parseLogcicalExpressionSpec :: Spec
 parseLogcicalExpressionSpec = do
@@ -950,7 +950,7 @@ parseLogcicalExpressionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "logical expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "logical expression" pExpression
 
 parseFuncCallSpec :: Spec
 parseFuncCallSpec = do
@@ -1027,7 +1027,7 @@ parseFuncCallSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "function call" pFuncCall
+  forM_ testCases $ exactlyParserVerifier "function call" pFuncCall
 
 parsepElemIndexSpec :: Spec
 parsepElemIndexSpec = do
@@ -1127,4 +1127,4 @@ parsepElemIndexSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "index retrieveing" pElemIndex
+  forM_ testCases $ exactlyParserVerifier "index retrieveing" pElemIndex

@@ -10,7 +10,7 @@ import Control.Monad.Trans.Accum (look)
 import Data.Maybe (fromMaybe, isNothing, listToMaybe)
 import Data.Text (Text)
 import Debug.Trace (trace)
-import Lib.AST.Expr (pExpression, pFuncCallArgsList)
+import Lib.AST.Expr (pExpression, pFuncCallArgsFormatList)
 import Lib.AST.Model
   ( CatchStatement (..),
     DataLocation (Storage),
@@ -417,7 +417,7 @@ pEventCall keyword = do
       >> pOneKeyword keyword
       >> pMany1Spaces
       >> pIdentifier
-  args <- pFuncCallArgsList
+  args <- pFuncCallArgsFormatList
   return (ident, args)
 
 pEmitStatement :: Parser EmitStatement

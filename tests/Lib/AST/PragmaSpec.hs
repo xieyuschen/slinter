@@ -47,7 +47,7 @@ parseCommentSpec = do
             "// helloworld _*&^"
           )
         ]
-  forM_ testCases $ verifyParser "comment" pComment
+  forM_ testCases $ exactlyParserVerifier "comment" pComment
 
 parseSPDXCommentSpec :: Spec
 parseSPDXCommentSpec = do
@@ -61,7 +61,7 @@ parseSPDXCommentSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "spdx comment" pSPDXComment
+  forM_ testCases $ exactlyParserVerifier "spdx comment" pSPDXComment
 
 parsePragmaSpec :: Spec
 parsePragmaSpec = do
@@ -83,7 +83,7 @@ parsePragmaSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "pragma" pPragma
+  forM_ testCases $ exactlyParserVerifier "pragma" pPragma
 
 parseImportDirecticeSpec :: Spec
 parseImportDirecticeSpec = do
@@ -123,7 +123,7 @@ parseImportDirecticeSpec = do
             "import * as MyLib from\"./MyLibrary.sol\";"
           )
         ]
-  forM_ testCases $ verifyParser "import directive" pImportDirective
+  forM_ testCases $ exactlyParserVerifier "import directive" pImportDirective
 
 parseImportAliasesSpec :: Spec
 parseImportAliasesSpec = do
@@ -151,7 +151,7 @@ parseImportAliasesSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "import aliases" pImportAliases
+  forM_ testCases $ exactlyParserVerifier "import aliases" pImportAliases
 
 parseUsingDirectiveSpec :: Spec
 parseUsingDirectiveSpec = do
@@ -249,7 +249,7 @@ parseUsingDirectiveSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "using directive" pUsingDirective
+  forM_ testCases $ exactlyParserVerifier "using directive" pUsingDirective
 
 parseUsingFieldAliasesSpec :: Spec
 parseUsingFieldAliasesSpec = do
@@ -325,7 +325,7 @@ parseUsingFieldAliasesSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "using field aliases" pUsingField
+  forM_ testCases $ exactlyParserVerifier "using field aliases" pUsingField
 
 parseUsingTypeSpec :: Spec
 parseUsingTypeSpec = do
@@ -343,4 +343,4 @@ parseUsingTypeSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "using type" pUsingType
+  forM_ testCases $ exactlyParserVerifier "using type" pUsingType

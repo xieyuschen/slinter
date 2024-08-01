@@ -28,7 +28,9 @@ data SemVer = SemVer
 
 type Parser a = Parsec Text () a
 
-runSParser :: Parser a -> Text -> (Either ParseError a, Text)
+type ParserResult a = Either ParseError a
+
+runSParser :: Parser a -> Text -> (ParserResult a, Text)
 runSParser p input =
   case runParser combinedParser () "" input of
     Left err -> (Left err, input) -- Return the original input if parsing fails

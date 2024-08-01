@@ -60,7 +60,7 @@ pStateVariableConstrain =
     <|> try (pOneKeyword "private") $> SVarPrivate
     <|> try (pOneKeyword "internal") $> SVarInternal
     <|> try (pOneKeyword "constant") $> SVarConstant
-    <|> try (SvarOs <$> pOverrideSpecifier)
+    <|> try (SVarOs <$> pOverrideSpecifier)
     <|> try (pOneKeyword "immutable") $> SVarImmutable
     <|> try (pOneKeyword "transient") $> SVarTransient
 
@@ -75,8 +75,8 @@ pFnDeclVisibility =
     <|> try (pOneKeyword "external") $> FnExternal
 
 -- parse the '(name: uint)' as so on. it will consume the following spaces
-pFunctionArgsInParentheses :: Parser [FnDeclArg]
-pFunctionArgsInParentheses = do
+pFnDeclArgsInParentheses :: Parser [FnDeclArg]
+pFnDeclArgsInParentheses = do
   fmap (fromMaybe []) $
     pManySpaces
       >> pOneKeyword leftParenthesis

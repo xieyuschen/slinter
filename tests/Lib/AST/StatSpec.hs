@@ -5,7 +5,7 @@ module Lib.AST.StatSpec (spec) where
 import Control.Monad (forM_)
 import Lib.AST.Model
 import Lib.AST.Stat
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 
 spec :: Spec
@@ -52,7 +52,7 @@ parseVarDefinitionSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "variable definition" pStVarDefStatement
+  forM_ testCases $ exactlyParserVerifier "variable definition" pStVarDefStatement
 
 parseStateVarSpec :: Spec
 parseStateVarSpec = do
@@ -122,7 +122,7 @@ parseStateVarSpec = do
             "fixed memory invalid_state_var=2345;"
           )
         ]
-  forM_ testCases $ verifyParser "state variable definition" pStateVariable
+  forM_ testCases $ exactlyParserVerifier "state variable definition" pStateVariable
 
 parseStatAssignSpec :: Spec
 parseStatAssignSpec = do
@@ -227,7 +227,7 @@ parseStatAssignSpec = do
           )
         ]
 
-  forM_ testCases $ verifyParser "assign statement" pAssignStat
+  forM_ testCases $ exactlyParserVerifier "assign statement" pAssignStat
 
 parseStateIfElseSpec :: Spec
 parseStateIfElseSpec = do
@@ -589,7 +589,7 @@ parseStateIfElseSpec = do
             "if (amount > msg.value / 2 ) {a=3;} elseif (amount > msg.value) { a=4;} else {a=5;}"
           )
         ]
-  forM_ testCases $ verifyParser "if statement" pIfStatement
+  forM_ testCases $ exactlyParserVerifier "if statement" pIfStatement
 
 parseForStatementSpec :: Spec
 parseForStatementSpec = do
@@ -686,7 +686,7 @@ parseForStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "for statement" pForStatement
+  forM_ testCases $ exactlyParserVerifier "for statement" pForStatement
 
 parseWhileStatementSpec :: Spec
 parseWhileStatementSpec = do
@@ -719,7 +719,7 @@ parseWhileStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "while statement" pWhileStatement
+  forM_ testCases $ exactlyParserVerifier "while statement" pWhileStatement
 
 parseDoWhileStatementSpec :: Spec
 parseDoWhileStatementSpec = do
@@ -752,7 +752,7 @@ parseDoWhileStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "do-while statement" pDoWhileStatement
+  forM_ testCases $ exactlyParserVerifier "do-while statement" pDoWhileStatement
 
 parseTryCatchStatementSpec :: Spec
 parseTryCatchStatementSpec = do
@@ -775,7 +775,7 @@ parseTryCatchStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "try-catch statement" pTryStatement
+  forM_ testCases $ exactlyParserVerifier "try-catch statement" pTryStatement
 
 parseCatchStatementSpec :: Spec
 parseCatchStatementSpec = do
@@ -801,7 +801,7 @@ parseCatchStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "catch statement only" pCatchStatment
+  forM_ testCases $ exactlyParserVerifier "catch statement only" pCatchStatment
 
 parseEmitStatementSpec :: Spec
 parseEmitStatementSpec = do
@@ -825,7 +825,7 @@ parseEmitStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "catch statement only" pEmitStatement
+  forM_ testCases $ exactlyParserVerifier "catch statement only" pEmitStatement
 
 parseRevertStatementSpec :: Spec
 parseRevertStatementSpec = do
@@ -849,4 +849,4 @@ parseRevertStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "catch statement only" pRevertStatement
+  forM_ testCases $ exactlyParserVerifier "catch statement only" pRevertStatement

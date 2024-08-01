@@ -35,10 +35,10 @@ import Lib.AST.Model
   ( ArrayN (ArrayN, aElemType),
     BitLengthDesc (..),
     Mapping (..),
-    SAlias (..),
     SType (..),
     STypeEnum (..),
     Structure (..),
+    UserDefinedValueTypeDefinition (..),
     aSize,
     leftCurlyBrace,
     leftSquareBracket,
@@ -120,17 +120,17 @@ pTypeMapping = do
 -- 'type UFixed256x18 is uint256;' or 'struct Price { uint128 price; }'
 pTypeDefinition :: Parser SType
 pTypeDefinition =
-  STypeAlias <$> pTypeAlias <|> STypeStructure <$> pTypeStruct
+  STypeAlias <$> pUserDefinedValueTypeDefinition <|> STypeStructure <$> pTypeStruct
 
 -- 'type UFixed256x18 is uint256;'
 -- user-defined-value-type-definition
-pTypeAlias :: Parser SAlias
-pTypeAlias = do
+pUserDefinedValueTypeDefinition :: Parser UserDefinedValueTypeDefinition
+pUserDefinedValueTypeDefinition = do
   liftA2
     ( \ident tp ->
-        SAlias
-          { salias = ident,
-            saliasOriginType = tp
+        UserDefinedValueTypeDefinition
+          { userDefinedValueTypeName = ident,
+            userDefinedValueElemType = tp
           }
     )
     ( pManySpaces
@@ -140,7 +140,7 @@ pTypeAlias = do
         <* pMany1Spaces
         <* pOneKeyword "is"
     )
-    pType
+    (pMany1Spaces *> pType <* pManySpaces <* pOneKeyword semicolon)
 
 pTypeStruct :: Parser Structure
 pTypeStruct =

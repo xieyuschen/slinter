@@ -140,10 +140,10 @@ pUnaryExpr = do
         uOperator = op
       }
 
-pFnCallArgumentList :: Parser FnCallArgs
-pFnCallArgumentList =
-  try pFuncCallArgsNamedParameters
-    <|> try pFuncCallArgsList
+pFnCallArgs :: Parser FnCallArgs
+pFnCallArgs =
+  try pFuncCallArgsFormatNamedParameters
+    <|> try pFuncCallArgsFormatList
 
 pFuncCall :: Parser ExprFnCall
 pFuncCall = do
@@ -154,7 +154,7 @@ pFuncCall = do
         -- use try here to make sure the identifier and keyword are consumed in a batch
         (optionMaybe $ try $ pIdentifier <* pOneKeyword ".")
         pIdentifier
-  args <- pManySpaces *> pFnCallArgumentList
+  args <- pManySpaces *> pFnCallArgs
   return
     ExprFnCall
       { fnContractName = ct,
@@ -173,8 +173,8 @@ pFuncCallNamedParameterKeyValue =
     )
     pExpression
 
-pFuncCallArgsNamedParameters :: Parser FnCallArgs
-pFuncCallArgsNamedParameters = do
+pFuncCallArgsFormatNamedParameters :: Parser FnCallArgs
+pFuncCallArgsFormatNamedParameters = do
   arg1 <-
     pOneKeyword leftParenthesis
       >> pManySpaces
@@ -194,8 +194,8 @@ pFuncCallArgsNamedParameters = do
   return $ FnCallArgsNamedParameters $ maybeToList arg1 ++ args
 
 -- todo: refine me with sepBy
-pFuncCallArgsList :: Parser FnCallArgs
-pFuncCallArgsList = do
+pFuncCallArgsFormatList :: Parser FnCallArgs
+pFuncCallArgsFormatList = do
   arg1 <-
     pOneKeyword leftParenthesis
       >> optionMaybe pExpression

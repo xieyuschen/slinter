@@ -3,15 +3,16 @@
 module Lib.AST.DefinitionSpec (spec) where
 
 import Control.Monad (forM_)
-import Lib.AST.Definition (pEventDefinition, pModifierDefinition)
+import Lib.AST.Definition (pContractBody, pEventDefinition, pModifierDefinition)
 import Lib.AST.Model
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier, leftRightJustifier, newParserVerifier, resultIsRight)
 import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do
   parseModifierDefinitionSpec
   parseEventDefinitionSpec
+  parseContractBodySpec
 
 parseModifierDefinitionSpec :: Spec
 parseModifierDefinitionSpec = do
@@ -118,7 +119,7 @@ parseModifierDefinitionSpec = do
           )
         ]
 
-  forM_ testCases $ verifyParser "modifier definition" pModifierDefinition
+  forM_ testCases $ exactlyParserVerifier "modifier definition" pModifierDefinition
 
 parseEventDefinitionSpec :: Spec
 parseEventDefinitionSpec = do
@@ -224,4 +225,32 @@ parseEventDefinitionSpec = do
           )
         ]
 
-  forM_ testCases $ verifyParser "event definition" pEventDefinition
+  forM_ testCases $ exactlyParserVerifier "event definition" pEventDefinition
+
+parseContractBodySpec :: Spec
+parseContractBodySpec = do
+  let testCases =
+        [ ( "function inc(string name) public pure { count += 1; }",
+            resultIsRight,
+            ""
+          ),
+          ( "function inc(string name) public pure { count += 1; } \
+            \modifier ExampleM(uint256 memory hello, string str); \
+            \constructor() {} \
+            \struct empty { \n uint128 price; \n address addr; \n }  \
+            \enum TEST { A1, a2, A3_, A_4 } \
+            \type _Ab is address; \
+            \uint256 constant name = hello;\
+            \event EA(string 0 str, string) anonymous; \
+            \event EA(string 0 str); \
+            \using a.b.c for Bitmap;\
+            \function receive(string name) public pure { count += 1; } \
+            \function fallback(string name) public pure { count += 1; } \
+            \ ",
+            Right 0,
+            ""
+          )
+        ]
+
+  -- we won't put the
+  forM_ testCases $ newParserVerifier leftRightJustifier "contract body" pContractBody

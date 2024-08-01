@@ -10,7 +10,6 @@ import Lib.AST.Model
     Literal (LNum),
     Mapping (Mapping, mKeyType, mValueType),
     Operator (ArithmeticExp),
-    SAlias (SAlias, salias, saliasOriginType),
     SExpr (SExprB, SExprL, SExprVar),
     SType
       ( STypeAddress,
@@ -28,16 +27,17 @@ import Lib.AST.Model
       ),
     STypeEnum (STypeEnum, eelems, ename),
     Structure (Structure, structFields, structName),
+    UserDefinedValueTypeDefinition (UserDefinedValueTypeDefinition, userDefinedValueElemType, userDefinedValueTypeName),
   )
 import Lib.AST.Type
   ( pType,
-    pTypeAlias,
     pTypeDefinition,
     pTypeEnum,
     pTypeStruct,
     pTypeWithDesc,
+    pUserDefinedValueTypeDefinition,
   )
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 
 spec :: Spec
@@ -165,7 +165,7 @@ parseArrayMapSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "map and array types" pType
+  forM_ testCases $ exactlyParserVerifier "map and array types" pType
 
 parseSimpleTypeSpec :: Spec
 parseSimpleTypeSpec = do
@@ -243,7 +243,7 @@ parseSimpleTypeSpec = do
             "bytes9"
           )
         ]
-  forM_ testCases $ verifyParser "simple types" pType
+  forM_ testCases $ exactlyParserVerifier "simple types" pType
 
 parseTypeWithBitLengthSpec :: Spec
 parseTypeWithBitLengthSpec = do
@@ -263,7 +263,7 @@ parseTypeWithBitLengthSpec = do
           ("bytes3", Right ("bytes", Just $ BitLength 3), ""),
           ("bytes9", Right ("bytes", Just $ BitLength 9), "")
         ]
-  forM_ testCases $ verifyParser "type with bit length" pTypeWithDesc
+  forM_ testCases $ exactlyParserVerifier "type with bit length" pTypeWithDesc
 
 parseTypeEnumSpec :: Spec
 parseTypeEnumSpec = do
@@ -289,33 +289,33 @@ parseTypeEnumSpec = do
             "test state"
           )
         ]
-  forM_ testCases $ verifyParser "type enum" pTypeEnum
+  forM_ testCases $ exactlyParserVerifier "type enum" pTypeEnum
 
 parseTypeAliasSpec :: Spec
 parseTypeAliasSpec = do
   let testCases =
-        [ ( "type Alias1 is uint256",
+        [ ( "type Alias1 is uint256;",
             Right $
-              SAlias
-                { salias = "Alias1",
-                  saliasOriginType = STypeUint 256
+              UserDefinedValueTypeDefinition
+                { userDefinedValueTypeName = "Alias1",
+                  userDefinedValueElemType = STypeUint 256
                 },
             ""
           ),
-          ( "type _Ab is address",
+          ( "type _Ab is address;",
             Right $
-              SAlias
-                { salias = "_Ab",
-                  saliasOriginType = STypeAddress
+              UserDefinedValueTypeDefinition
+                { userDefinedValueTypeName = "_Ab",
+                  userDefinedValueElemType = STypeAddress
                 },
             ""
           ),
-          ( "type is uint256",
+          ( "type is uint256;",
             Left ["\"u\"", "\"u\"", "space", "\"is\""],
-            "type is uint256"
+            "type is uint256;"
           )
         ]
-  forM_ testCases $ verifyParser "type alias" pTypeAlias
+  forM_ testCases $ exactlyParserVerifier "type alias" pUserDefinedValueTypeDefinition
 
 parseTypeStructureSpec :: Spec
 parseTypeStructureSpec = do
@@ -379,7 +379,7 @@ parseTypeStructureSpec = do
             "struct {} test state"
           )
         ]
-  forM_ testCases $ verifyParser "type struct" pTypeStruct
+  forM_ testCases $ exactlyParserVerifier "type struct" pTypeStruct
 
 parseTypeDifinitionSpec :: Spec
 parseTypeDifinitionSpec = do
@@ -394,17 +394,17 @@ parseTypeDifinitionSpec = do
                   },
             whitespace
           ),
-          ( "type Alias1 is uint256",
+          ( "type Alias1 is uint256;",
             Right $
               STypeAlias $
-                SAlias
-                  { salias = "Alias1",
-                    saliasOriginType = STypeUint 256
+                UserDefinedValueTypeDefinition
+                  { userDefinedValueTypeName = "Alias1",
+                    userDefinedValueElemType = STypeUint 256
                   },
             ""
           )
         ]
-  forM_ testCases $ verifyParser "type definition" pTypeDefinition
+  forM_ testCases $ exactlyParserVerifier "type definition" pTypeDefinition
 
 parseTypeCustomSpec :: Spec
 parseTypeCustomSpec = do
@@ -414,4 +414,4 @@ parseTypeCustomSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "type definition" pType
+  forM_ testCases $ exactlyParserVerifier "type definition" pType

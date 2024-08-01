@@ -12,7 +12,7 @@ import Lib.Parser
     pSemVer,
     pString,
   )
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 
 spec :: Spec
@@ -27,7 +27,7 @@ parseVersionSpec = do
           ("*", Right (SemVer {major = 0, minor = 0, patch = Nothing, semVerRangeMark = Just Wildcards}), ""),
           ("0.8.24", Right (SemVer {major = 0, minor = 8, patch = Just 24, semVerRangeMark = Nothing}), "")
         ]
-  forM_ testCases $ verifyParser "version" pSemVer
+  forM_ testCases $ exactlyParserVerifier "version" pSemVer
 
 parseStringSpec :: Spec
 parseStringSpec = do
@@ -38,4 +38,4 @@ parseStringSpec = do
           -- hex should be converted to the string correctly
           ("hex\"4142434445\"", Right "ABCDE", "")
         ]
-  forM_ testCases $ verifyParser "parse string" pString
+  forM_ testCases $ exactlyParserVerifier "parse string" pString

@@ -21,10 +21,9 @@ import Data.Maybe (catMaybes, fromMaybe, isNothing, listToMaybe, mapMaybe, maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Debug.Trace
-import Lib.AST.Expr (pExpression, pFnCallArgumentList)
+import Lib.AST.Expr (pExpression, pFnCallArgs)
 import Lib.AST.Model
-  ( ContractField (CtFunction, CtVariable),
-    DataLocation (Storage),
+  ( DataLocation (Storage),
     FnDeclArg (..),
     FnDecorator (..),
     FnModifierInvocation (..),
@@ -60,7 +59,7 @@ pFunction = do
       >> pOneKeyword keywordFunction
       >> pMany1Spaces
       >> pFunctionName
-  args <- pManySpaces >> pFunctionArgsInParentheses
+  args <- pManySpaces >> pFnDeclArgsInParentheses
 
   -- todo: support custom modifiers as well
   decorators <- pFunctionDecorators
@@ -100,14 +99,6 @@ pFunction = do
         }
     )
 
-getCtFunction :: ContractField -> Maybe Function
-getCtFunction (CtFunction f) = Just f
-getCtFunction _ = Nothing
-
-getCtVariable :: ContractField -> Maybe StateVariable
-getCtVariable (CtVariable v) = Just v
-getCtVariable _ = Nothing
-
 pFunctionReturnTypeWithQuote :: Parser SType
 pFunctionReturnTypeWithQuote =
   pManySpaces
@@ -139,7 +130,7 @@ pFnDeclStateMutability =
 pFnDeclModifierInvocation :: Parser FnModifierInvocation
 pFnDeclModifierInvocation = do
   path <- pIdentifierPath
-  args <- optionMaybe pFnCallArgumentList
+  args <- optionMaybe pFnCallArgs
   return
     FnModifierInvocation
       { fnModifierInvocationArgs = args,

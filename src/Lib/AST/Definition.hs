@@ -2,14 +2,25 @@
 
 module Lib.AST.Definition where
 
+import Data.Either
 import Data.Functor (($>))
-import Data.Maybe (listToMaybe)
-import Lib.AST.Model (EventDefinition (..), EventParameter (..), FnDecorator (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon)
-import Lib.AST.Stat (pState)
-import Lib.AST.Type (pInt, pType)
+import Data.Maybe (fromMaybe, listToMaybe)
+import Lib.AST.Expr (pFnCallArgs)
+import Lib.AST.Function (pFnDeclModifierInvocation, pFunction)
+import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ContractBodyFieldSum (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), Function (fname), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon)
+import Lib.AST.Pragma (pComment, pUsingDirective)
+import Lib.AST.Stat (pState, pStateVariable)
+import Lib.AST.Type (pInt, pType, pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
 import Lib.AST.Util
 import Lib.Parser (Parser, pIdentifier, pMany1Spaces, pManySpaces, pNumber, pOneKeyword)
-import Text.Parsec (between, char, many, optionMaybe, sepBy, (<|>))
+import Text.Parsec (between, char, many, optionMaybe, sepBy, sepEndBy, try, (<|>))
+
+pConstructorMutability :: Parser ConstructorMutability
+pConstructorMutability =
+  do
+    try (pOneKeyword "payable") $> ConstructorPayable
+    <|> try (pOneKeyword "internal") $> ConstructorInternal
+    <|> try (pOneKeyword "public") $> ConstructorPublic
 
 pModifierDefinition :: Parser ModifierDefinition
 pModifierDefinition = do
@@ -17,7 +28,7 @@ pModifierDefinition = do
     pOneKeyword "modifier"
       *> pMany1Spaces
       *> pIdentifier
-  args <- pManySpaces >> optionMaybe pFunctionArgsInParentheses
+  args <- pManySpaces >> optionMaybe pFnDeclArgsInParentheses
 
   dec <-
     sepBy
@@ -43,17 +54,6 @@ pModifierDefinition = do
         modifierOverrideSpecifier = listToMaybe $ extractFnDecOs dec,
         modifierBody = modifierBody
       }
-
--- data EventParameter = EventParameter{
---   eventParamName :: Text,
---   eventParamIndex :: Maybe Int,
---   eventParamIdent :: Maybe Text
--- }deriving (Show, Eq)
--- data EventDefinition = EventDefinition{
---   eventName :: Text,
---   eventParameter :: [EventParameter],
---   eventIsAnonymous :: Bool
--- } deriving (Show, Eq)
 
 pEventParameter :: Parser EventParameter
 pEventParameter = do
@@ -87,4 +87,159 @@ pEventDefinition = do
       { eventParameters = params,
         eventIsAnonymous = isAnonymous,
         eventName = ident
+      }
+
+pErrorDefinition :: Parser ErrorDefinition
+pErrorDefinition = do
+  ident <-
+    pOneKeyword "error"
+      *> pMany1Spaces
+      *> pIdentifier
+      <* pManySpaces
+  args <-
+    between
+      (pOneKeyword leftParenthesis)
+      (pOneKeyword rightParenthesis)
+      ( sepBy (pManySpaces *> pErrorParameter <* pManySpaces) (char ',')
+      )
+
+  return $
+    ErrorDefinition
+      { errParameters = args,
+        errName = ident
+      }
+
+pErrorParameter :: Parser ErrorParameter
+pErrorParameter = do
+  tp <- pType <* pManySpaces
+  nameM <- optionMaybe pIdentifier
+  return $
+    ErrorParameter
+      { errParamName = nameM,
+        errParamType = tp
+      }
+
+pInheritanceSpecifier :: Parser InheritanceSpecifier
+pInheritanceSpecifier = do
+  path <- pIdentifierPath <* pManySpaces
+  args <- pFnCallArgs
+  return $
+    InheritanceSpecifier
+      { inheritanceCallArgs = args,
+        inheritancePath = path
+      }
+
+pConstructorDefinition :: Parser ConstructorDefinition
+pConstructorDefinition = do
+  parameters <-
+    pOneKeyword "constructor"
+      *> pFnDeclArgsInParentheses
+
+  decorators <-
+    sepBy
+      ( Left <$> pConstructorMutability
+          <|> Right <$> pFnDeclModifierInvocation
+      )
+      pMany1Spaces
+
+  body <-
+    pManySpaces
+      *> between
+        (pOneKeyword leftCurlyBrace >> pManySpaces)
+        (pOneKeyword rightCurlyBrace)
+        (many $ pState <* pManySpaces)
+  let mutability = fromMaybe ConstructorPublic $ listToMaybe $ lefts decorators
+      mi = listToMaybe $ rights decorators
+
+  return $
+    ConstructorDefinition
+      { constructorBody = body,
+        constructorMutability = mutability,
+        constructorModifierInvocation = mi,
+        constructorParamList = parameters
+      }
+
+-- pContractBody parses the contract body quoted with '{}'
+pContractBody :: Parser ContractBody
+pContractBody = do
+  all <-
+    sepEndBy
+      ( try pComment $> CBFSSumComments
+          <|> CBFSSumUsingDirective <$> try pUsingDirective
+          <|> CBFSSumConstructor <$> try pConstructorDefinition
+          <|> CBFSSumFunction <$> try pFunction
+          <|> CBFSSumModifierDefinition <$> try pModifierDefinition
+          <|> CBFSSumStructure <$> try pTypeStruct
+          <|> CBFSSumSTypeEnum <$> try pTypeEnum
+          <|> CBFSSumUserDefinedValueTypeDefinition <$> try pUserDefinedValueTypeDefinition
+          <|> CBFSSumEventDefinition <$> try pEventDefinition
+          <|> CBFSSumErrorDefinition <$> try pErrorDefinition
+          -- the state variable parser should be put at last to avoid parse the other keyword as a type
+          <|> CBFSSumStateVariable <$> try pStateVariable
+      )
+      pManySpaces
+
+  return $
+    ContractBody
+      { ctBodyConstructor = Nothing,
+        ctBodyFunctions = [v | CBFSSumFunction v <- all],
+        ctBodyModifiers = [v | CBFSSumModifierDefinition v <- all],
+        ctBodyStructDefinitions = [v | CBFSSumStructure v <- all],
+        ctBodyEnumDefinitions = [v | CBFSSumSTypeEnum v <- all],
+        ctBodyUserDefinedValueTypeDefinition = [v | CBFSSumUserDefinedValueTypeDefinition v <- all],
+        ctBodyStateVariables = [v | CBFSSumStateVariable v <- all],
+        ctBodyEventDefinitions = [v | CBFSSumEventDefinition v <- all],
+        ctBodyErrorDefinitions = [v | CBFSSumErrorDefinition v <- all],
+        ctBodyUsingDirectives = [v | CBFSSumUsingDirective v <- all],
+        ctBodyReceiveFunctions = filter (\f -> fname f == FnReceive) [v | CBFSSumFunction v <- all],
+        ctBodyFallbackFunctions = filter (\f -> fname f == FnFallback) [v | CBFSSumFunction v <- all],
+        ctBodyAllFields = all
+      }
+
+pInterfaceDefinition :: Parser InterfaceDefinition
+pInterfaceDefinition = do
+  name <-
+    pManySpaces
+      *> pOneKeyword "interface"
+      *> pMany1Spaces
+      *> pIdentifier
+      <* pMany1Spaces
+      <* pOneKeyword "is"
+      <* pMany1Spaces
+  iSpecicier <-
+    sepBy
+      (pManySpaces *> pInheritanceSpecifier <* pManySpaces)
+      (char ',')
+  body <-
+    pManySpaces
+      *> between
+        (pOneKeyword leftParenthesis)
+        (pOneKeyword rightParenthesis)
+        (pManySpaces *> pContractBody <* pManySpaces)
+
+  return $
+    InterfaceDefinition
+      { interfaceName = name,
+        interfaceInheritanceSpecifiers = iSpecicier,
+        interfaceBody = body
+      }
+
+pLibraryDefinition :: Parser LibraryDefinition
+pLibraryDefinition = do
+  name <-
+    pManySpaces
+      *> pOneKeyword "library"
+      *> pMany1Spaces
+      *> pIdentifier
+      <* pManySpaces
+  body <-
+    pManySpaces
+      *> between
+        (pOneKeyword leftParenthesis)
+        (pOneKeyword rightParenthesis)
+        (pManySpaces *> pContractBody <* pManySpaces)
+  return $
+    LibraryDefinition
+      { libraryBody = body,
+        libraryName = name
       }

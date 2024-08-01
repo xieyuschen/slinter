@@ -6,7 +6,7 @@ import Control.Monad (forM_)
 import Lib.AST.Function
 import Lib.AST.Model
 import Lib.Parser (runSParser)
-import Lib.TestCommon (verifyParser)
+import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec, describe, it, shouldBe)
 
 spec :: Spec
@@ -342,7 +342,7 @@ parseFunctionSignatureSpec = do
             ""
           )
         ]
-  forM_ testCases $ verifyParser "whole function" pFunction
+  forM_ testCases $ exactlyParserVerifier "whole function" pFunction
 
 parseFunctionModifiers :: Spec
 parseFunctionModifiers = do
@@ -364,7 +364,7 @@ parseFunctionModifiers = do
             "returns {"
           )
         ]
-  forM_ testCases $ verifyParser "function decorator" pFunctionDecorators
+  forM_ testCases $ exactlyParserVerifier "function decorator" pFunctionDecorators
 
 parseFunctionReturnsClauseSpec :: Spec
 parseFunctionReturnsClauseSpec = do

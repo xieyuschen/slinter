@@ -41,7 +41,7 @@ import Lib.AST.Model
       ),
   )
 import Lib.AST.Oper (pOperator)
-import Lib.TestCommon (appendSuffix, verifyParser)
+import Lib.TestCommon (appendSuffix, exactlyParserVerifier)
 import Test.Hspec (Spec)
 
 spec :: Spec
@@ -197,10 +197,10 @@ parseOperatorSpec = do
           )
         ]
 
-  forM_ testCases $ verifyParser "arithmetic expression" pOperator
+  forM_ testCases $ exactlyParserVerifier "arithmetic expression" pOperator
   -- in this turn, we add some suffix after the operator to make sure the parse works well
   forM_ testCases $
-    verifyParser
+    exactlyParserVerifier
       "arithmetic expression with add-on"
       pOperator
       . appendSuffix "1_suffix"

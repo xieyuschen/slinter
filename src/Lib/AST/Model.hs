@@ -56,13 +56,6 @@ leftSquareBracket = "["
 rightSquareBracket :: Text
 rightSquareBracket = "]"
 
-data ContractField
-  = CtFunction Function
-  | CtVariable StateVariable
-  | CtComment Comment
-  | CtEmptyLine
-  deriving (Eq)
-
 data AST
   = ASTSPDXComment SPDXComment
   | ASTComment Comment
@@ -71,7 +64,6 @@ data AST
   | ASTFunction Function
   | ASTModifier FnVisibility
   | ASTVariable StateVariable
-  | ASTContract Contract
   | Struct
       { name :: Text
       }
@@ -98,9 +90,9 @@ data Mapping = Mapping
   }
   deriving (Show, Eq)
 
-data SAlias = SAlias
-  { salias :: Text,
-    saliasOriginType :: SType
+data UserDefinedValueTypeDefinition = UserDefinedValueTypeDefinition
+  { userDefinedValueTypeName :: Text,
+    userDefinedValueElemType :: SType
   }
   deriving (Show, Eq)
 
@@ -118,7 +110,7 @@ data SType -- solidity type
   | STypeMapping Mapping
   | STypeArray ArrayN
   | STypeCustom Text
-  | STypeAlias SAlias
+  | STypeAlias UserDefinedValueTypeDefinition
   | STypeStructure Structure
   | CustomTODO
   deriving (Show, Eq)
@@ -164,6 +156,7 @@ data FnDecorator
   | FnDecOs OverrideSpecifier
   deriving (Show, Eq)
 
+-- todo: the function is not necessary, remove them
 extractFnDecV :: [FnDecorator] -> [FnVisibility]
 extractFnDecV decorators = [v | FnDecV v <- decorators]
 
@@ -197,7 +190,7 @@ data StateVariableConstrain
   | SVarPrivate
   | SVarInternal
   | SVarConstant
-  | SvarOs OverrideSpecifier
+  | SVarOs OverrideSpecifier
   | SVarImmutable
   | SVarTransient
   deriving (Show, Eq)
@@ -211,13 +204,6 @@ data StateVariable = StateVariable
     svName :: Text,
     svComment :: Maybe Comment, -- attached comment
     svVarExpr :: Maybe SExpr
-  }
-  deriving (Show, Eq)
-
-data Contract = Contract
-  { ctName :: Text,
-    ctFunctions :: [Function],
-    ctVariables :: [StateVariable]
   }
   deriving (Show, Eq)
 
@@ -524,5 +510,99 @@ data EventDefinition = EventDefinition
   { eventName :: Text,
     eventParameters :: [EventParameter],
     eventIsAnonymous :: Bool
+  }
+  deriving (Show, Eq)
+
+data ContractDefinition = ContractDefinition
+  { contractIsAbstract :: Bool,
+    contractName :: Text,
+    contractInheritanceSpecifiers :: [InheritanceSpecifier],
+    contractBody :: ContractBody
+  }
+  deriving (Show, Eq)
+
+data ConstructorMutability
+  = ConstructorPayable
+  | ConstructorInternal
+  | ConstructorPublic
+  deriving (Show, Eq)
+
+data ConstructorDefinition = ConstructorDefinition
+  { constructorParamList :: [FnDeclArg],
+    -- todo: check whether it could be multiple
+    constructorModifierInvocation :: Maybe FnModifierInvocation,
+    constructorMutability :: ConstructorMutability,
+    constructorBody :: [Stat]
+  }
+  deriving (Show, Eq)
+
+-- todo: impl me pls
+data ErrorDefinition = ErrorDefinition
+  { errName :: Text,
+    errParameters :: [ErrorParameter]
+  }
+  deriving (Show, Eq)
+
+data ErrorParameter = ErrorParameter
+  { errParamType :: SType,
+    errParamName :: Maybe Text
+  }
+  deriving (Show, Eq)
+
+data InterfaceDefinition = InterfaceDefinition
+  { interfaceName :: Text,
+    interfaceInheritanceSpecifiers :: [InheritanceSpecifier],
+    interfaceBody :: ContractBody
+  }
+  deriving (Show, Eq)
+
+data LibraryDefinition = LibraryDefinition
+  { libraryName :: Text,
+    libraryBody :: ContractBody
+  }
+  deriving (Show, Eq)
+
+data InheritanceSpecifier = InheritanceSpecifier
+  { inheritancePath :: IdentifierPath,
+    inheritanceCallArgs :: FnCallArgs
+  }
+  deriving (Show, Eq)
+
+data ContractBodyField
+  = CtFunction Function
+  | CtVariable StateVariable
+  | CtComment Comment
+  | CtEmptyLine
+  deriving (Show, Eq)
+
+data ContractBodyFieldSum
+  = CBFSSumConstructor ConstructorDefinition
+  | CBFSSumFunction Function
+  | CBFSSumModifierDefinition ModifierDefinition
+  | CBFSSumStructure Structure
+  | CBFSSumSTypeEnum STypeEnum
+  | CBFSSumUserDefinedValueTypeDefinition UserDefinedValueTypeDefinition
+  | CBFSSumStateVariable StateVariable
+  | CBFSSumEventDefinition EventDefinition
+  | CBFSSumErrorDefinition ErrorDefinition
+  | CBFSSumUsingDirective UsingDirective
+  | CBFSSumContractBodyFieldSum ContractBodyFieldSum
+  | CBFSSumComments
+  deriving (Show, Eq)
+
+data ContractBody = ContractBody
+  { ctBodyConstructor :: Maybe ConstructorDefinition,
+    ctBodyFunctions :: [Function],
+    ctBodyModifiers :: [ModifierDefinition],
+    ctBodyFallbackFunctions :: [Function],
+    ctBodyReceiveFunctions :: [Function],
+    ctBodyStructDefinitions :: [Structure],
+    ctBodyEnumDefinitions :: [STypeEnum],
+    ctBodyUserDefinedValueTypeDefinition :: [UserDefinedValueTypeDefinition],
+    ctBodyStateVariables :: [StateVariable],
+    ctBodyEventDefinitions :: [EventDefinition],
+    ctBodyErrorDefinitions :: [ErrorDefinition],
+    ctBodyUsingDirectives :: [UsingDirective],
+    ctBodyAllFields :: [ContractBodyFieldSum]
   }
   deriving (Show, Eq)
