@@ -54,7 +54,7 @@ spec = do
 parseArrayMapSpec :: Spec
 parseArrayMapSpec = do
   let testCases =
-        [ ( "mapping(address => uint256) private _balances;",
+        [ ( "mapping (address => uint256) private _balances;",
             Right $
               STypeMapping $
                 Mapping
@@ -63,7 +63,7 @@ parseArrayMapSpec = do
                   },
             "private _balances;"
           ),
-          ( "mapping(address => mapping(address => uint256)) private _allowances;",
+          ( "mapping (\naddress => mapping\n(address => uint256)) \nprivate _allowances;",
             Right $
               STypeMapping $
                 Mapping
@@ -276,7 +276,15 @@ parseTypeEnumSpec = do
                 },
             ""
           ),
-          ( "enum TEST { A1, a2, A3_, A_4 }",
+          ( "enum TEST \n{ A1, a2, \nA3_, A_4 \n}",
+            Right $
+              STypeEnum
+                { ename = "TEST",
+                  eelems = ["A1", "a2", "A3_", "A_4"]
+                },
+            ""
+          ),
+          ( "enum\n TEST \n{ A1, a2, \nA3_, A_4 \n}",
             Right $
               STypeEnum
                 { ename = "TEST",

@@ -47,6 +47,7 @@ pOneKeyword s = T.pack <$> string (T.unpack s)
 pReadline :: Parser Text
 pReadline = T.pack <$> manyTill anyChar (newline <|> crlf)
 
+-- consume any Unicode space character, and the control characters \t, \n, \r, \f, \v
 pManySpaces :: Parser ()
 pManySpaces = skipMany space
 

@@ -131,9 +131,12 @@ pUnaryExpr = do
   -- don't use pExpression here because we don't want to parse the whole expression after unary
   -- for example, -(x-1) && 234, we should parse the -(x-1) as an expression only
   operand <-
-    pParenthesizedExpr
-      <|> SExprL <$> pLiteral
-      <|> SExprVar <$> pIdentifier
+    pManySpaces
+      >> ( pParenthesizedExpr -- it's allowed to have space after the unary operator
+             <|> SExprL <$> pLiteral
+             <|> SExprVar <$> pIdentifier
+             <|> SExprU <$> pUnaryExpr -- double unary expression is possible, such as '- - 1'
+         )
   return
     ExprUnary
       { uOperand = operand,

@@ -25,7 +25,7 @@ import Lib.AST.Model
     ExprUnary (ExprUnary, uOperand, uOperator),
     FnCallArgs (FnCallArgsList, FnCallArgsNamedParameters),
     Literal (LBool, LNum),
-    Operator (ArithmeticAddition, ArithmeticDivision, ArithmeticExp, ArithmeticMultiplication, BitAnd, BitExor, BitNeg, BitOr, ComparisionLess, ComparisionLessEqual, ComparisionMore, ComparisionMoreEqual, LogicalAnd, LogicalEqual, LogicalInequal, LogicalNegation, LogicalOr, Minus, ShiftLeft, ShiftRight),
+    Operator (ArithmeticAddition, ArithmeticDivision, ArithmeticExp, ArithmeticMultiplication, BitAnd, BitExor, BitNeg, BitOr, ComparisonLess, ComparisonLessEqual, ComparisonMore, ComparisonMoreEqual, LogicalAnd, LogicalEqual, LogicalInequal, LogicalNegation, LogicalOr, Minus, ShiftLeft, ShiftRight),
     SExpr (SExprB, SExprD, SExprF, SExprI, SExprL, SExprN, SExprParentheses, SExprS, SExprT, SExprU, SExprVar),
   )
 import Lib.AST.Util
@@ -34,15 +34,15 @@ import Test.Hspec (Spec)
 
 spec :: Spec
 spec = do
-  parseLogcicalExpressionSpec
-  parseArithemeticExpressionSpec
+  parseLogicalExpressionSpec
+  parseArithmeticExpressionSpec
   parseBitExpressionSpec
-  parseComparisionExpressionSpec
+  parseComparisonExpressionSpec
   parseShiftExpressionSpec
   parseUnaryExpressionSpec
-  parseSelectionExprSepc
+  parseSelectionExprSpec
   parseFuncCallSpec
-  parsepElemIndexSpec
+  parseElemIndexSpec
   parseLocationModifierSpec
   parseTernaryExprSpec
   parseDeleteNewExprSpec
@@ -51,7 +51,7 @@ spec = do
 parsePrecedenceExprSpec :: Spec
 parsePrecedenceExprSpec = do
   let testCases =
-        [ ( "true?false:true || true && false == 3 < false + 3 + 2*m[1][2]**2",
+        [ ( "true?false:\ntrue \n|| true \n&& false == 3 < false + 3 + 2*m[1][2]**2",
             Right
               ( SExprT
                   ExprTernary
@@ -111,7 +111,7 @@ parsePrecedenceExprSpec = do
                                                                     },
                                                               bOperator = ArithmeticAddition
                                                             },
-                                                      bOperator = ComparisionLess
+                                                      bOperator = ComparisonLess
                                                     },
                                               bOperator = LogicalEqual
                                             },
@@ -123,7 +123,7 @@ parsePrecedenceExprSpec = do
               ),
             ""
           ),
-          ( "2*m[1][2]**2",
+          ( "2*m[1][2]\n **2",
             Right
               ( SExprB
                   ExprBinary
@@ -170,6 +170,10 @@ parseDeleteNewExprSpec = do
           ( "delete var",
             Right (SExprD "var"),
             ""
+          ),
+          ( "delete \nvar",
+            Right (SExprD "var"),
+            ""
           )
         ]
   forM_ testCases $ exactlyParserVerifier "unary expression" pExpression
@@ -186,7 +190,7 @@ parseTernaryExprSpec = do
                 },
             ""
           ),
-          ( "true ? 1*2 : 0",
+          ( "true ? \n1*2 : 0",
             Right
               ExprTernary
                 { ternaryCond = SExprL (LBool True),
@@ -201,7 +205,7 @@ parseTernaryExprSpec = do
                 },
             ""
           ),
-          ( "x&&y ? (1+4*5) : 0",
+          ( "x&&y \n? (1+4*5) : 0",
             Right
               ExprTernary
                 { ternaryCond =
@@ -230,7 +234,7 @@ parseTernaryExprSpec = do
                 },
             ""
           ),
-          ( "true ? false ? 1 :2 : 0",
+          ( "true ? false ? 1 :2 : \n0",
             Right
               ExprTernary
                 { ternaryCond = SExprL (LBool True),
@@ -270,9 +274,9 @@ parseLocationModifierSpec = do
         ]
   forM_ testCases $ exactlyParserVerifier "variable definition" pLocationModifier
 
-parseSelectionExprSepc :: Spec
-parseSelectionExprSepc = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+parseSelectionExprSpec :: Spec
+parseSelectionExprSpec = do
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "a.b",
             Right $
@@ -340,6 +344,30 @@ parseUnaryExpressionSpec = do
                   { uOperand = SExprL $ LNum 1,
                     uOperator = Minus
                   },
+            ""
+          ),
+          ( "- 1",
+            Right $
+              SExprU $
+                ExprUnary
+                  { uOperand = SExprL $ LNum 1,
+                    uOperator = Minus
+                  },
+            ""
+          ),
+          ( "- - 1",
+            Right
+              ( SExprU
+                  ExprUnary
+                    { uOperator = Minus,
+                      uOperand =
+                        SExprU
+                          ExprUnary
+                            { uOperator = Minus,
+                              uOperand = SExprL (LNum 1)
+                            }
+                    }
+              ),
             ""
           ),
           ( "-x",
@@ -472,7 +500,7 @@ parseUnaryExpressionSpec = do
                 ExprBinary
                   { leftOperand = SExprL $ LNum 123,
                     rightOperand =
-                      -- this is intended, and in the syntax stage we can easily recognize such csae
+                      -- this is intended, and in the syntax stage we can easily recognize such case
                       SExprU $
                         ExprUnary
                           { uOperand = SExprVar "x",
@@ -487,7 +515,7 @@ parseUnaryExpressionSpec = do
 
 parseShiftExpressionSpec :: Spec
 parseShiftExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "1 << 2",
             Right $
@@ -509,7 +537,7 @@ parseShiftExpressionSpec = do
                   },
             ""
           ),
-          ( "1>>2<<3",
+          ( "1>>2 <<3",
             Right
               ( SExprB
                   ExprBinary
@@ -526,7 +554,7 @@ parseShiftExpressionSpec = do
               ),
             ""
           ),
-          ( "1>>(2<<3)",
+          ( "1>> (2<<3)",
             Right
               ( SExprB
                   ExprBinary
@@ -547,9 +575,9 @@ parseShiftExpressionSpec = do
         ]
   forM_ testCases $ exactlyParserVerifier "shift expression" pExpression
 
-parseComparisionExpressionSpec :: Spec
-parseComparisionExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+parseComparisonExpressionSpec :: Spec
+parseComparisonExpressionSpec = do
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "1 <= 2",
             Right $
@@ -557,7 +585,7 @@ parseComparisionExpressionSpec = do
                 ExprBinary
                   { leftOperand = SExprL $ LNum 1,
                     rightOperand = SExprL $ LNum 2,
-                    bOperator = ComparisionLessEqual
+                    bOperator = ComparisonLessEqual
                   },
             ""
           ),
@@ -567,7 +595,7 @@ parseComparisionExpressionSpec = do
                 ExprBinary
                   { leftOperand = SExprL $ LNum 1,
                     rightOperand = SExprL $ LNum 2,
-                    bOperator = ComparisionLess
+                    bOperator = ComparisonLess
                   },
             ""
           ),
@@ -577,7 +605,7 @@ parseComparisionExpressionSpec = do
                 ExprBinary
                   { leftOperand = SExprL $ LNum 1,
                     rightOperand = SExprL $ LNum 2,
-                    bOperator = ComparisionMore
+                    bOperator = ComparisonMore
                   },
             ""
           ),
@@ -587,7 +615,7 @@ parseComparisionExpressionSpec = do
                 ExprBinary
                   { leftOperand = SExprL $ LNum 1,
                     rightOperand = SExprL $ LNum 2,
-                    bOperator = ComparisionMoreEqual
+                    bOperator = ComparisonMoreEqual
                   },
             ""
           ),
@@ -600,10 +628,10 @@ parseComparisionExpressionSpec = do
                           ExprBinary
                             { leftOperand = SExprL (LNum 1),
                               rightOperand = SExprL (LNum 2),
-                              bOperator = ComparisionMoreEqual
+                              bOperator = ComparisonMoreEqual
                             },
                       rightOperand = SExprL (LNum 3),
-                      bOperator = ComparisionLessEqual
+                      bOperator = ComparisonLessEqual
                     }
               ),
             ""
@@ -619,19 +647,19 @@ parseComparisionExpressionSpec = do
                             ExprBinary
                               { leftOperand = SExprL (LNum 2),
                                 rightOperand = SExprL (LNum 3),
-                                bOperator = ComparisionMore
+                                bOperator = ComparisonMore
                               },
-                      bOperator = ComparisionLess
+                      bOperator = ComparisonLess
                     }
               ),
             ""
           )
         ]
-  forM_ testCases $ exactlyParserVerifier "comparision expression" pExpression
+  forM_ testCases $ exactlyParserVerifier "Comparison expression" pExpression
 
 parseBitExpressionSpec :: Spec
 parseBitExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "1 & 2",
             Right $
@@ -711,9 +739,9 @@ parseBitExpressionSpec = do
         ]
   forM_ testCases $ exactlyParserVerifier "bit expression" pExpression
 
-parseArithemeticExpressionSpec :: Spec
-parseArithemeticExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+parseArithmeticExpressionSpec :: Spec
+parseArithmeticExpressionSpec = do
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "1",
             Right $ SExprL $ LNum 1,
@@ -818,9 +846,9 @@ parseArithemeticExpressionSpec = do
         ]
   forM_ testCases $ exactlyParserVerifier "arithmetic expression" pExpression
 
-parseLogcicalExpressionSpec :: Spec
-parseLogcicalExpressionSpec = do
-  -- some test caes has an invalid syntax but still could be parsed in AST
+parseLogicalExpressionSpec :: Spec
+parseLogicalExpressionSpec = do
+  -- some test case has an invalid syntax but still could be parsed in AST
   let testCases =
         [ ( "true",
             Right $ SExprL $ LBool True,
@@ -973,7 +1001,7 @@ parseFuncCallSpec = do
                 },
             ""
           ),
-          ( "uint(2)", -- todo: should we seperate the type cast from function call?
+          ( "uint(2)", -- todo: should we separate the type cast from FunctionDefinition call?
             Right
               ExprFnCall
                 { fnContractName = Nothing,
@@ -1027,10 +1055,10 @@ parseFuncCallSpec = do
             ""
           )
         ]
-  forM_ testCases $ exactlyParserVerifier "function call" pFuncCall
+  forM_ testCases $ exactlyParserVerifier "FunctionDefinition call" pFuncCall
 
-parsepElemIndexSpec :: Spec
-parsepElemIndexSpec = do
+parseElemIndexSpec :: Spec
+parseElemIndexSpec = do
   let testCases =
         [ ( "m[1]",
             Right
@@ -1127,4 +1155,4 @@ parsepElemIndexSpec = do
             ""
           )
         ]
-  forM_ testCases $ exactlyParserVerifier "index retrieveing" pElemIndex
+  forM_ testCases $ exactlyParserVerifier "index retrieving" pElemIndex

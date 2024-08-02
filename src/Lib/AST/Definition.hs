@@ -6,8 +6,8 @@ import Data.Either
 import Data.Functor (($>))
 import Data.Maybe (fromMaybe, listToMaybe)
 import Lib.AST.Expr (pFnCallArgs)
-import Lib.AST.Function (pFnDeclModifierInvocation, pFunction)
-import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ContractBodyFieldSum (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), Function (fname), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon)
+import Lib.AST.Function (pFnDeclModifierInvocation, pFunctionDefinition)
+import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ContractBodyFieldSum (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), FunctionDefinition (fnDefName), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon)
 import Lib.AST.Pragma (pComment, pUsingDirective)
 import Lib.AST.Stat (pState, pStateVariable)
 import Lib.AST.Type (pInt, pType, pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
@@ -167,7 +167,7 @@ pContractBody = do
       ( try pComment $> CBFSSumComments
           <|> CBFSSumUsingDirective <$> try pUsingDirective
           <|> CBFSSumConstructor <$> try pConstructorDefinition
-          <|> CBFSSumFunction <$> try pFunction
+          <|> CBFSSumFunction <$> try pFunctionDefinition
           <|> CBFSSumModifierDefinition <$> try pModifierDefinition
           <|> CBFSSumStructure <$> try pTypeStruct
           <|> CBFSSumSTypeEnum <$> try pTypeEnum
@@ -191,8 +191,8 @@ pContractBody = do
         ctBodyEventDefinitions = [v | CBFSSumEventDefinition v <- all],
         ctBodyErrorDefinitions = [v | CBFSSumErrorDefinition v <- all],
         ctBodyUsingDirectives = [v | CBFSSumUsingDirective v <- all],
-        ctBodyReceiveFunctions = filter (\f -> fname f == FnReceive) [v | CBFSSumFunction v <- all],
-        ctBodyFallbackFunctions = filter (\f -> fname f == FnFallback) [v | CBFSSumFunction v <- all],
+        ctBodyReceiveFunctions = filter (\f -> fnDefName f == FnReceive) [v | CBFSSumFunction v <- all],
+        ctBodyFallbackFunctions = filter (\f -> fnDefName f == FnFallback) [v | CBFSSumFunction v <- all],
         ctBodyAllFields = all
       }
 

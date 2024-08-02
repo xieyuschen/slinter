@@ -41,6 +41,7 @@ import Lib.AST.Model
     UserDefinedValueTypeDefinition (..),
     aSize,
     leftCurlyBrace,
+    leftParenthesis,
     leftSquareBracket,
     rightSquareBracket,
     semicolon,
@@ -96,7 +97,9 @@ pTypeMapping :: Parser Mapping
 pTypeMapping = do
   keyTyp <-
     pManySpaces
-      >> pOneKeyword "mapping("
+      >> pOneKeyword "mapping"
+      >> pManySpaces
+      >> pOneKeyword leftParenthesis
       >> pManySpaces
       >> pType
         <* pManySpaces

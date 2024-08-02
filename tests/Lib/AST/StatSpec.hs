@@ -247,7 +247,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -279,7 +279,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -310,7 +310,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -342,7 +342,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -379,7 +379,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -417,7 +417,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -441,7 +441,7 @@ parseStateIfElseSpec = do
                                             { selectionBase = SExprVar "msg",
                                               selectionField = "value"
                                             },
-                                      bOperator = ComparisionMore
+                                      bOperator = ComparisonMore
                                     },
                               stIfThen =
                                 [ StatAssign
@@ -485,7 +485,7 @@ parseStateIfElseSpec = do
                                         bOperator = ArithmeticDivision
                                       }
                                   ),
-                              bOperator = ComparisionMore
+                              bOperator = ComparisonMore
                             }
                         ),
                     stIfThen =
@@ -507,7 +507,7 @@ parseStateIfElseSpec = do
                                               rightOperand = SExprL (LNum 2),
                                               bOperator = ArithmeticDivision
                                             },
-                                      bOperator = ComparisionMore
+                                      bOperator = ComparisonMore
                                     },
                               stIfThen =
                                 [ StatAssign
@@ -529,7 +529,7 @@ parseStateIfElseSpec = do
                                                       { selectionBase = SExprVar "msg",
                                                         selectionField = "value"
                                                       },
-                                                bOperator = ComparisionMore
+                                                bOperator = ComparisonMore
                                               },
                                         stIfThen =
                                           [ StatAssign
@@ -562,7 +562,7 @@ parseStateIfElseSpec = do
                                             { selectionBase = SExprVar "msg",
                                               selectionField = "value"
                                             },
-                                      bOperator = ComparisionMore
+                                      bOperator = ComparisonMore
                                     },
                               stIfThen =
                                 [ StatAssign
@@ -600,7 +600,7 @@ parseForStatementSpec = do
             Right
               ( ForStatement
                   { forDecl = Just (StVarDefStatement {stVarType = STypeInt 256, stVarName = "i", stVarLocation = Storage, stVarExpr = Just (SExprL (LNum 0)), stVarComment = Nothing}),
-                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisionLess})),
+                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisonLess})),
                     forCond = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 1), bOperator = CompoundAddition})),
                     forBody =
                       [ StatAssign
@@ -618,7 +618,7 @@ parseForStatementSpec = do
             Right
               ( ForStatement
                   { forDecl = Nothing,
-                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisionLess})),
+                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisonLess})),
                     forCond = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 1), bOperator = CompoundAddition})),
                     forBody =
                       [ StatAssign
@@ -654,7 +654,7 @@ parseForStatementSpec = do
             Right
               ( ForStatement
                   { forDecl = Just (StVarDefStatement {stVarType = STypeInt 256, stVarName = "i", stVarLocation = Storage, stVarExpr = Just (SExprL (LNum 0)), stVarComment = Nothing}),
-                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisionLess})),
+                    forExprStat = Just (SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisonLess})),
                     forCond = Nothing,
                     forBody =
                       [ StatAssign
@@ -712,7 +712,7 @@ parseWhileStatementSpec = do
           ( "while(i<10){a=1;}",
             Right
               ( WhileStatement
-                  { whileCond = SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisionLess}),
+                  { whileCond = SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisonLess}),
                     whileBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 1)})]
                   }
               ),
@@ -745,7 +745,7 @@ parseDoWhileStatementSpec = do
           ( "do {a=1;} while(i<10);",
             Right
               ( DoWhileStatement
-                  { doWhileCond = SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisionLess}),
+                  { doWhileCond = SExprB (ExprBinary {leftOperand = SExprVar "i", rightOperand = SExprL (LNum 10), bOperator = ComparisonLess}),
                     doWhileBody = [StatAssign (StAssignStatement {stAssignVarName = "a", stAssignExpr = SExprL (LNum 1)})]
                   }
               ),

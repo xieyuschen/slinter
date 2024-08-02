@@ -247,7 +247,23 @@ parseContractBodySpec = do
             \function receive(string name) public pure { count += 1; } \
             \function fallback(string name) public pure { count += 1; } \
             \ ",
-            Right 0,
+            resultIsRight,
+            ""
+          ),
+          ( "function inc(string name) public pure { count += 1; } \n\
+            \modifier ExampleM(uint256 memory hello, string str); \n\
+            \constructor() {} \n\
+            \struct empty { \n uint128 price; \n address addr; \n }  \n\
+            \enum TEST { A1, a2, A3_, A_4 } \n\
+            \type _Ab is address; \n\
+            \uint256 constant name = hello;\n \
+            \event EA(string 0 str, string) anonymous; \n\
+            \event EA(string 0 str); \n\
+            \using a.b.c for Bitmap;\n\
+            \function receive(string name) public pure { count += 1; } \n\
+            \function fallback(string name) public pure { count += 1; } \n\
+            \ ",
+            resultIsRight,
             ""
           )
         ]

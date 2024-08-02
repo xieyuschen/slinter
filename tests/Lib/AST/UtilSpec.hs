@@ -14,8 +14,20 @@ spec = do
 
 parseFunctionQuotedArgs :: Spec
 parseFunctionQuotedArgs = do
+  let fnResult =
+        Right
+          [ FnDeclArg
+              { fnArgTp = STypeString,
+                fnArgName = Just "str",
+                fnArgLocation = Storage
+              }
+          ]
   let testCases =
         [ ( "()",
+            Right [],
+            ""
+          ),
+          ( "(\n)",
             Right [],
             ""
           ),
@@ -24,13 +36,19 @@ parseFunctionQuotedArgs = do
             ""
           ),
           ( " (string str) ",
-            Right
-              [ FnDeclArg
-                  { fnArgTp = STypeString,
-                    fnArgName = Just "str",
-                    fnArgLocation = Storage
-                  }
-              ],
+            fnResult,
+            ""
+          ),
+          ( " (string \nstr) ",
+            fnResult,
+            ""
+          ),
+          ( " (\nstring str\n) ",
+            fnResult,
+            ""
+          ),
+          ( " (\nstring \nstr\n) ",
+            fnResult,
             ""
           ),
           ( " ( uint256 name) ",
@@ -58,7 +76,7 @@ parseFunctionQuotedArgs = do
               ],
             ""
           ),
-          ( "(uint256 memory name, string calldata new_name, string)",
+          ( "(uint256 memory \nname, string calldata\n new_name, string)",
             Right
               [ FnDeclArg
                   { fnArgTp = STypeUint 256,
@@ -78,7 +96,7 @@ parseFunctionQuotedArgs = do
               ],
             ""
           ),
-          ( " ( uint256 name, string old_name, fixed256x16) ",
+          ( " ( uint256 name\n, string old_name,\n fixed256x16) ",
             Right
               [ FnDeclArg
                   { fnArgTp = STypeUint 256,

@@ -51,7 +51,7 @@ pFunctionArgs =
         )
         pType
         (optionMaybe $ pManySpaces >> pLocationModifier)
-        (optionMaybe $ pManySpaces >> pIdentifier)
+        (optionMaybe $ pManySpaces >> pIdentifier <* pManySpaces)
 
 pStateVariableConstrain :: Parser StateVariableConstrain
 pStateVariableConstrain =
@@ -77,15 +77,11 @@ pFnDeclVisibility =
 -- parse the '(name: uint)' as so on. it will consume the following spaces
 pFnDeclArgsInParentheses :: Parser [FnDeclArg]
 pFnDeclArgsInParentheses = do
-  fmap (fromMaybe []) $
-    pManySpaces
-      >> pOneKeyword leftParenthesis
-      >> pManySpaces
-      >> optionMaybe pFunctionArgs
-        <* ( pManySpaces
-               >> pOneKeyword rightParenthesis
-               >> pManySpaces
-           )
+  fromMaybe []
+    <$> between
+      (pManySpaces >> pOneKeyword leftParenthesis >> pManySpaces)
+      (pManySpaces >> pOneKeyword rightParenthesis >> pManySpaces)
+      (optionMaybe pFunctionArgs)
 
 -- whether the function is decorated by the 'virtual' keyword
 pFnDeclVirtual :: Parser FnDecorator

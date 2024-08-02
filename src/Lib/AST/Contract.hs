@@ -35,7 +35,7 @@ pContractDefinition = do
       >> pMany1Spaces
         *> pIdentifier
         <* pManySpaces
-  inheriSpeciciers <-
+  inherSpecifiers <-
     optionMaybe $
       pOneKeyword "is"
         *> pMany1Spaces
@@ -53,6 +53,6 @@ pContractDefinition = do
     ContractDefinition
       { contractName = contractName,
         contractIsAbstract = isJust abs,
-        contractInheritanceSpecifiers = fromMaybe [] inheriSpeciciers,
+        contractInheritanceSpecifiers = fromMaybe [] inherSpecifiers,
         contractBody = body
       }

@@ -7,11 +7,6 @@ module Lib.ParserSpec (spec) where
 
 import Control.Monad (forM_)
 import Lib.Parser
-  ( SemVer (SemVer, major, minor, patch, semVerRangeMark),
-    SemVerRangeMark (Tilde, Wildcards),
-    pSemVer,
-    pString,
-  )
 import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 
@@ -19,6 +14,7 @@ spec :: Spec
 spec = do
   parseVersionSpec
   parseStringSpec
+  parseManyEmptyCharsSpec
 
 parseVersionSpec :: Spec
 parseVersionSpec = do
@@ -39,3 +35,14 @@ parseStringSpec = do
           ("hex\"4142434445\"", Right "ABCDE", "")
         ]
   forM_ testCases $ exactlyParserVerifier "parse string" pString
+
+parseManyEmptyCharsSpec :: Spec
+parseManyEmptyCharsSpec = do
+  let testCases =
+        [ ("   E", Right (), "E"),
+          ("  \n E", Right (), "E"),
+          ("  \r E", Right (), "E"),
+          ("  \n\r E", Right (), "E"),
+          ("  \r\n E", Right (), "E")
+        ]
+  forM_ testCases $ exactlyParserVerifier "parse empty chars" pManySpaces

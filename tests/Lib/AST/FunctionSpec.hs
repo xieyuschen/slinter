@@ -17,41 +17,69 @@ spec = do
 
 parseFunctionSignatureSpec :: Spec
 parseFunctionSignatureSpec = do
+  -- it's used to test the newline char in function definition
+  let fnData =
+        Right
+          FunctionDefinition
+            { fnReturnTyp = Nothing,
+              fargs =
+                [ FnDeclArg
+                    { fnArgTp = STypeString,
+                      fnArgName = Just "name",
+                      fnArgLocation = Storage
+                    }
+                ],
+              fnModifierInvocations = [],
+              fnFnOverrideSpecifier = Nothing,
+              fnVisibility = FnPublic,
+              fnState = FnStatePure,
+              fnIsVirtual = False,
+              fnDefName = FnNormal "inc",
+              fnBody =
+                Just
+                  [ StatExpr
+                      ( SExprB
+                          ExprBinary
+                            { leftOperand = SExprVar "count",
+                              rightOperand = SExprL (LNum 1),
+                              bOperator = CompoundAddition
+                            }
+                      )
+                  ]
+            }
+
   let testCases =
         [ ( "function inc(string name) public pure { count += 1; }",
-            Right
-              Function
-                { fnReturnTyp = Nothing,
-                  fargs =
-                    [ FnDeclArg
-                        { fnArgTp = STypeString,
-                          fnArgName = Just "name",
-                          fnArgLocation = Storage
-                        }
-                    ],
-                  fnModifierInvocations = [],
-                  fnFnOverrideSpecifier = Nothing,
-                  fnVisibility = FnPublic,
-                  fnState = FnStatePure,
-                  fnIsVirtual = False,
-                  fname = FnNormal "inc",
-                  fnBody =
-                    Just
-                      [ StatExpr
-                          ( SExprB
-                              ExprBinary
-                                { leftOperand = SExprVar "count",
-                                  rightOperand = SExprL (LNum 1),
-                                  bOperator = CompoundAddition
-                                }
-                          )
-                      ]
-                },
+            fnData,
+            ""
+          ),
+          ( "function inc\n(string name) public pure { count += 1; }",
+            fnData,
+            ""
+          ),
+          ( "function inc\n(string name) public pure { count += 1; }",
+            fnData,
+            ""
+          ),
+          ( "function inc(string \nname) public pure { count += 1; }",
+            fnData,
+            ""
+          ),
+          ( "function inc(string name) public \npure { count += 1; }",
+            fnData,
+            ""
+          ),
+          ( "function inc(string name) public pure { \n count += 1; \n}",
+            fnData,
+            ""
+          ),
+          ( "function \ninc\n(\nstring\n name\n) \npublic\n pure\n { \n count += 1; \n}",
+            fnData,
             ""
           ),
           ( "function inc(string) public pure { count += 1; }",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Nothing,
                   fargs =
                     [ FnDeclArg
@@ -65,7 +93,7 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnPublic,
                   fnState = FnStatePure,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc",
+                  fnDefName = FnNormal "inc",
                   fnBody =
                     Just
                       [ StatExpr
@@ -82,7 +110,7 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc(string name, uint256 new_name) internal view returns (uint256) { count += 1; }",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Just $ STypeUint 256,
                   fargs =
                     [ FnDeclArg
@@ -101,7 +129,7 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnInternal,
                   fnState = FnStateView,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc",
+                  fnDefName = FnNormal "inc",
                   fnBody =
                     Just
                       [ StatExpr
@@ -118,7 +146,7 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc(string memory name, uint256 calldata new_name) internal view returns (uint256) { count += 1; }",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Just $ STypeUint 256,
                   fargs =
                     [ FnDeclArg
@@ -137,7 +165,7 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnInternal,
                   fnState = FnStateView,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc",
+                  fnDefName = FnNormal "inc",
                   fnBody =
                     Just
                       [ StatExpr
@@ -154,7 +182,7 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() external payable returns (uint256) { count += 1; } }",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
                   fnModifierInvocations = [],
@@ -162,7 +190,7 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnExternal,
                   fnState = FnStatePayable,
                   fnIsVirtual = False,
-                  fname = FnNormal "inc",
+                  fnDefName = FnNormal "inc",
                   fnBody =
                     Just
                       [ StatExpr
@@ -179,7 +207,7 @@ parseFunctionSignatureSpec = do
           ),
           ( "function fallback() external payable returns (uint256);",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
                   fnModifierInvocations = [],
@@ -187,14 +215,14 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnExternal,
                   fnState = FnStatePayable,
                   fnIsVirtual = False,
-                  fname = FnFallback,
+                  fnDefName = FnFallback,
                   fnBody = Nothing
                 },
             ""
           ),
           ( "function receive() external returns (uint256) { count += 1; } }",
             Right
-              Function
+              FunctionDefinition
                 { fnReturnTyp = Just $ STypeUint 256,
                   fargs = [],
                   fnModifierInvocations = [],
@@ -202,7 +230,7 @@ parseFunctionSignatureSpec = do
                   fnVisibility = FnExternal,
                   fnState = FnStateDefault,
                   fnIsVirtual = False,
-                  fname = FnReceive,
+                  fnDefName = FnReceive,
                   fnBody =
                     Just
                       [ StatExpr
@@ -220,8 +248,8 @@ parseFunctionSignatureSpec = do
           ( -- todo: check whether it's valid if no decorator is used
             "function inc() virtual returns (uint256) { count += 1; } }",
             Right
-              Function
-                { fname = FnNormal "inc",
+              FunctionDefinition
+                { fnDefName = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
                   fnModifierInvocations = [],
@@ -245,8 +273,8 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() virtual modifierInvocation1 modifierInvocation1(owner) returns (uint256) ;",
             Right
-              Function
-                { fname = FnNormal "inc",
+              FunctionDefinition
+                { fnDefName = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
                   fnModifierInvocations =
@@ -269,8 +297,8 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() override returns (uint256) { count += 1; } }",
             Right
-              Function
-                { fname = FnNormal "inc",
+              FunctionDefinition
+                { fnDefName = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
                   fnModifierInvocations = [],
@@ -294,8 +322,8 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() override(a.b.c, a.b) returns (uint256) { count += 1; } }",
             Right
-              Function
-                { fname = FnNormal "inc",
+              FunctionDefinition
+                { fnDefName = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
                   fnModifierInvocations = [],
@@ -319,8 +347,8 @@ parseFunctionSignatureSpec = do
           ),
           ( "function inc() virtual modifierInvocation1 override(a.b.c, a.b) modifierInvocation1(owner) returns (uint256);",
             Right
-              Function
-                { fname = FnNormal "inc",
+              FunctionDefinition
+                { fnDefName = FnNormal "inc",
                   fnVisibility = FnInternal,
                   fnState = FnStateDefault,
                   fnModifierInvocations =
@@ -342,12 +370,16 @@ parseFunctionSignatureSpec = do
             ""
           )
         ]
-  forM_ testCases $ exactlyParserVerifier "whole function" pFunction
+  forM_ testCases $ exactlyParserVerifier "whole function" pFunctionDefinition
 
 parseFunctionModifiers :: Spec
 parseFunctionModifiers = do
   let testCases =
         [ ( "public  view ",
+            Right [FnDecV FnPublic, FnDecS FnStateView],
+            ""
+          ),
+          ( "public  \n view ",
             Right [FnDecV FnPublic, FnDecS FnStateView],
             ""
           ),
@@ -359,9 +391,17 @@ parseFunctionModifiers = do
             Right [FnDecV FnPublic],
             "{"
           ),
+          ( "public \n view \n{",
+            Right [FnDecV FnPublic, FnDecS FnStateView],
+            "{"
+          ),
           ( "public  view returns {",
             Right [FnDecV FnPublic, FnDecS FnStateView],
             "returns {"
+          ),
+          ( "public \n view \nreturns \n{",
+            Right [FnDecV FnPublic, FnDecS FnStateView],
+            "returns \n{"
           )
         ]
   forM_ testCases $ exactlyParserVerifier "function decorator" pFunctionDecorators

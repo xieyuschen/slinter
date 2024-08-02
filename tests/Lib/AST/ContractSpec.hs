@@ -19,7 +19,7 @@ parseContractSpec = do
     let testCase =
           ( "contract Counter { \
             \   uint256 public count;\
-            \   // Function to get the current count \n \
+            \   // function to get the current count \n \
             \   function get() public view returns (uint256) {\
             \       return count;\
             \    } \

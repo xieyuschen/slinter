@@ -56,19 +56,6 @@ leftSquareBracket = "["
 rightSquareBracket :: Text
 rightSquareBracket = "]"
 
-data AST
-  = ASTSPDXComment SPDXComment
-  | ASTComment Comment
-  | ASTPragma Pragma
-  | ASTType SType
-  | ASTFunction Function
-  | ASTModifier FnVisibility
-  | ASTVariable StateVariable
-  | Struct
-      { name :: Text
-      }
-  deriving (Show, Eq)
-
 -- // SPDX-License-Identifier: MIT
 type SPDXComment = Text
 
@@ -127,8 +114,8 @@ data FnName
   | FnReceive -- function receive
   deriving (Show, Eq)
 
-data Function = Function
-  { fname :: FnName,
+data FunctionDefinition = FunctionDefinition
+  { fnDefName :: FnName,
     fnState :: FnStateMutability,
     fnVisibility :: FnVisibility,
     fnModifierInvocations :: [FnModifierInvocation],
@@ -314,10 +301,10 @@ data Operator
   | ArithmeticDivision -- /
   | ArithmeticModulus -- %
   | ArithmeticExp --  **
-  | ComparisionLessEqual -- <=
-  | ComparisionLess -- <
-  | ComparisionMoreEqual -- >=
-  | ComparisionMore -- >
+  | ComparisonLessEqual -- <=
+  | ComparisonLess -- <
+  | ComparisonMoreEqual -- >=
+  | ComparisonMore -- >
   | BitAnd -- &
   | BitOr --  |
   | BitExor --  ^
@@ -327,7 +314,7 @@ data Operator
   | CompoundAddition -- +=
   | CompoundMinus -- -=
   | CompoundMultiply -- '*='
-  | CompoundDevision -- /=
+  | CompoundDivision -- /=
   | CompoundModulus -- %=
   | CompoundAnd -- '&='
   | CompoundOr -- '|='
@@ -569,7 +556,7 @@ data InheritanceSpecifier = InheritanceSpecifier
   deriving (Show, Eq)
 
 data ContractBodyField
-  = CtFunction Function
+  = CtFunction FunctionDefinition
   | CtVariable StateVariable
   | CtComment Comment
   | CtEmptyLine
@@ -577,7 +564,7 @@ data ContractBodyField
 
 data ContractBodyFieldSum
   = CBFSSumConstructor ConstructorDefinition
-  | CBFSSumFunction Function
+  | CBFSSumFunction FunctionDefinition
   | CBFSSumModifierDefinition ModifierDefinition
   | CBFSSumStructure Structure
   | CBFSSumSTypeEnum STypeEnum
@@ -592,10 +579,10 @@ data ContractBodyFieldSum
 
 data ContractBody = ContractBody
   { ctBodyConstructor :: Maybe ConstructorDefinition,
-    ctBodyFunctions :: [Function],
+    ctBodyFunctions :: [FunctionDefinition],
     ctBodyModifiers :: [ModifierDefinition],
-    ctBodyFallbackFunctions :: [Function],
-    ctBodyReceiveFunctions :: [Function],
+    ctBodyFallbackFunctions :: [FunctionDefinition],
+    ctBodyReceiveFunctions :: [FunctionDefinition],
     ctBodyStructDefinitions :: [Structure],
     ctBodyEnumDefinitions :: [STypeEnum],
     ctBodyUserDefinedValueTypeDefinition :: [UserDefinedValueTypeDefinition],

@@ -14,13 +14,13 @@ import Lib.AST.Model
         BitExor,
         BitNeg,
         BitOr,
-        ComparisionLess,
-        ComparisionLessEqual,
-        ComparisionMore,
-        ComparisionMoreEqual,
+        ComparisonLess,
+        ComparisonLessEqual,
+        ComparisonMore,
+        ComparisonMoreEqual,
         CompoundAddition,
         CompoundAnd,
-        CompoundDevision,
+        CompoundDivision,
         CompoundExor,
         CompoundLeftShift,
         CompoundMinus,
@@ -100,27 +100,27 @@ parseOperatorSpec = do
             ""
           ),
           ( "<=",
-            Right ComparisionLessEqual,
+            Right ComparisonLessEqual,
             ""
           ),
           ( "<",
-            Right ComparisionLess,
+            Right ComparisonLess,
             ""
           ),
           ( ">=",
-            Right ComparisionMoreEqual,
+            Right ComparisonMoreEqual,
             ""
           ),
           ( ">=",
-            Right ComparisionMoreEqual,
+            Right ComparisonMoreEqual,
             ""
           ),
           ( ">",
-            Right ComparisionMore,
+            Right ComparisonMore,
             ""
           ),
           ( ">",
-            Right ComparisionMore,
+            Right ComparisonMore,
             ""
           ),
           ( "&",
@@ -160,7 +160,7 @@ parseOperatorSpec = do
             ""
           ),
           ( "/=",
-            Right CompoundDevision,
+            Right CompoundDivision,
             ""
           ),
           ( "%=",

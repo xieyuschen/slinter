@@ -31,7 +31,7 @@ pOperator2Char = do
     "--" -> return Decrement
     "**" -> return ArithmeticExp
     "*=" -> return CompoundMultiply
-    "/=" -> return CompoundDevision
+    "/=" -> return CompoundDivision
     "%=" -> return CompoundModulus
     "!=" -> return LogicalInequal
     "&&" -> return LogicalAnd
@@ -39,12 +39,12 @@ pOperator2Char = do
     "||" -> return LogicalOr
     "|=" -> return CompoundOr
     "^=" -> return CompoundExor
-    "<=" -> return ComparisionLessEqual
+    "<=" -> return ComparisonLessEqual
     "<<" -> return ShiftLeft
-    ">=" -> return ComparisionMoreEqual
+    ">=" -> return ComparisonMoreEqual
     ">>" -> return ShiftRight
     "==" -> return LogicalEqual
-    _ -> fail "unsupport operator in two characters"
+    _ -> fail "un-support operator in two characters"
 
 pOperator1Char :: Parser Operator
 pOperator1Char = do
@@ -62,9 +62,9 @@ pOperator1Char = do
     "~" -> return BitNeg
     "&" -> return BitAnd
     "|" -> return BitOr
-    "<" -> return ComparisionLess
-    ">" -> return ComparisionMore
-    _ -> fail "unsupport operator in one character"
+    "<" -> return ComparisonLess
+    ">" -> return ComparisonMore
+    _ -> fail "un-support operator in one character"
 
 pOperator :: Parser Operator
 pOperator = do
@@ -74,32 +74,41 @@ pOperator = do
            <|> try pOperator1Char
        )
 
--- we use the same rank mentioned in the documentation to refre the precedences among different
+-- we use the same rank mentioned in the documentation to refer the precedences among different
 -- operators, in the format of pOpRank{n} such as pOpRank1 and so on
 -- https://docs.soliditylang.org/en/latest/types.html#order-of-precedence-of-operators
 
 -- todo: support all the cases in rank1
 -- todo: support the delete cases
 -- todo: think about the unary minus precedence
+opRank2 :: [Operator]
 opRank2 = [Increment, Decrement, LogicalNegation, BitNeg]
 
+opRank3 :: [Operator]
 opRank3 = [ArithmeticExp]
 
 opRank6 :: [Operator]
 opRank6 = [ShiftLeft, ShiftRight]
 
+opRank7 :: [Operator]
 opRank7 = [BitAnd]
 
+opRank8 :: [Operator]
 opRank8 = [BitExor]
 
+opRank9 :: [Operator]
 opRank9 = [BitOr]
 
-opRank10 = [ComparisionLessEqual, ComparisionLess, ComparisionMoreEqual, ComparisionMore]
+opRank10 :: [Operator]
+opRank10 = [ComparisonLessEqual, ComparisonLess, ComparisonMoreEqual, ComparisonMore]
 
+opRank11 :: [Operator]
 opRank11 = [LogicalEqual, LogicalInequal]
 
+opRank12 :: [Operator]
 opRank12 = [LogicalAnd]
 
+opRank13 :: [Operator]
 opRank13 = [LogicalOr]
 
 -- todo: support op14 Ternary operator, and assignment
@@ -107,7 +116,7 @@ opRank14 =
   [ CompoundAddition,
     CompoundMinus,
     CompoundMultiply,
-    CompoundDevision,
+    CompoundDivision,
     CompoundModulus,
     CompoundAnd,
     CompoundOr,

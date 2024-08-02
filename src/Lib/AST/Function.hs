@@ -30,7 +30,7 @@ import Lib.AST.Model
     FnName (..),
     FnStateMutability (..),
     FnVisibility (..),
-    Function (..),
+    FunctionDefinition (..),
     OverrideSpecifier,
     SType,
     StateVariable,
@@ -52,8 +52,8 @@ import Lib.AST.Util
 import Lib.Parser
 import Text.Parsec
 
-pFunction :: Parser Function
-pFunction = do
+pFunctionDefinition :: Parser FunctionDefinition
+pFunctionDefinition = do
   name <-
     pManySpaces
       >> pOneKeyword keywordFunction
@@ -61,14 +61,13 @@ pFunction = do
       >> pFunctionName
   args <- pManySpaces >> pFnDeclArgsInParentheses
 
-  -- todo: support custom modifiers as well
   decorators <- pFunctionDecorators
 
-  -- guards the decorators satisify the function declaration specification
+  -- guards the decorators satisfy the function declaration specification
   let visibility = extractFnDecV decorators
       states = extractFnDecS decorators
       mis = extractFnDecMI decorators
-      ospecifier = extractFnDecOs decorators
+      oSpecifier = extractFnDecOs decorators
   guard $ length visibility <= 1
   guard $ length states <= 1
   guard $ length states <= 1
@@ -86,14 +85,14 @@ pFunction = do
 
   -- why 'many anyChar' doesn't work?
   return
-    ( Function
-        { fname = name,
+    ( FunctionDefinition
+        { fnDefName = name,
           fargs = args,
           fnIsVirtual = FnDecVirtual `elem` decorators,
           fnVisibility = fromMaybe FnInternal $ listToMaybe visibility,
           fnState = fromMaybe FnStateDefault $ listToMaybe states,
           fnModifierInvocations = mis,
-          fnFnOverrideSpecifier = listToMaybe ospecifier,
+          fnFnOverrideSpecifier = listToMaybe oSpecifier,
           fnReturnTyp = optReturns,
           fnBody = fnBody
         }
