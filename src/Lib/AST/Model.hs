@@ -551,7 +551,7 @@ data LibraryDefinition = LibraryDefinition
 
 data InheritanceSpecifier = InheritanceSpecifier
   { inheritancePath :: IdentifierPath,
-    inheritanceCallArgs :: FnCallArgs
+    inheritanceCallArgs :: Maybe FnCallArgs
   }
   deriving (Show, Eq)
 

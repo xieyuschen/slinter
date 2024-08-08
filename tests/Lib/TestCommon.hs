@@ -39,8 +39,9 @@ leftRightJustifier expectedResult result = do
         if isRight result
           then return ()
           else expectationFailure $ "Expected Right but got Left: " ++ show (fromLeft (error "") result)
-      Left _ -> do
+      Left err -> do
         errorPos (fromLeft (error "") result) `shouldBe` initialPos ""
+        err `shouldBe` []
 
 exactlyJustifier :: (Eq a, Show a) => Justifier a a
 exactlyJustifier expectedResult result = do

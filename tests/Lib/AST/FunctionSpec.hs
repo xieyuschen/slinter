@@ -368,6 +368,21 @@ parseFunctionSignatureSpec = do
                   fnBody = Nothing
                 },
             ""
+          ),
+          ( "function getResult() external view returns(uint);",
+            Right
+              FunctionDefinition
+                { fnDefName = FnNormal "getResult",
+                  fnState = FnStateView,
+                  fnVisibility = FnExternal,
+                  fnModifierInvocations = [],
+                  fnFnOverrideSpecifier = Nothing,
+                  fnIsVirtual = False,
+                  fargs = [],
+                  fnReturnTyp = Just (STypeUint 256),
+                  fnBody = Nothing
+                },
+            ""
           )
         ]
   forM_ testCases $ exactlyParserVerifier "whole function" pFunctionDefinition

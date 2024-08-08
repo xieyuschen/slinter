@@ -26,7 +26,9 @@ pModifierDefinition :: Parser ModifierDefinition
 pModifierDefinition = do
   ident <-
     pOneKeyword "modifier"
-      *> pMany1Spaces
+      *> ( pMany1Spaces
+             <|> fail "space is required after keyword 'modifier'"
+         )
       *> pIdentifier
   args <- pManySpaces >> optionMaybe pFnDeclArgsInParentheses
 
@@ -71,7 +73,9 @@ pEventDefinition :: Parser EventDefinition
 pEventDefinition = do
   ident <-
     pOneKeyword "event"
-      *> pMany1Spaces
+      *> ( pMany1Spaces
+             <|> fail "space is required after keyword 'event'"
+         )
       *> pIdentifier
   params <-
     between
@@ -81,7 +85,7 @@ pEventDefinition = do
       )
 
   isAnonymous <- pOneKeyword "anonymous" $> True <|> return False
-  _ <- pOneKeyword semicolon
+  _ <- pManySpaces *> pOneKeyword semicolon
   return
     EventDefinition
       { eventParameters = params,
@@ -93,7 +97,9 @@ pErrorDefinition :: Parser ErrorDefinition
 pErrorDefinition = do
   ident <-
     pOneKeyword "error"
-      *> pMany1Spaces
+      *> ( pMany1Spaces
+             <|> fail "space is required after keyword 'error'"
+         )
       *> pIdentifier
       <* pManySpaces
   args <-
@@ -102,7 +108,7 @@ pErrorDefinition = do
       (pOneKeyword rightParenthesis)
       ( sepBy (pManySpaces *> pErrorParameter <* pManySpaces) (char ',')
       )
-
+  _ <- pManySpaces *> pOneKeyword semicolon
   return $
     ErrorDefinition
       { errParameters = args,
@@ -121,8 +127,8 @@ pErrorParameter = do
 
 pInheritanceSpecifier :: Parser InheritanceSpecifier
 pInheritanceSpecifier = do
-  path <- pIdentifierPath <* pManySpaces
-  args <- pFnCallArgs
+  path <- pIdentifierPath
+  args <- optionMaybe pFnCallArgs
   return $
     InheritanceSpecifier
       { inheritanceCallArgs = args,
@@ -201,26 +207,33 @@ pInterfaceDefinition = do
   name <-
     pManySpaces
       *> pOneKeyword "interface"
-      *> pMany1Spaces
+      *> ( pMany1Spaces
+             <|> fail "space is required after keyword 'interface'"
+         )
       *> pIdentifier
-      <* pMany1Spaces
-      <* pOneKeyword "is"
-      <* pMany1Spaces
+      <* pManySpaces
+
   iSpecicier <-
-    sepBy
-      (pManySpaces *> pInheritanceSpecifier <* pManySpaces)
-      (char ',')
+    optionMaybe $
+      try
+        ( pOneKeyword "is"
+            *> pMany1Spaces
+            *> sepBy
+              (pManySpaces *> pInheritanceSpecifier <* pManySpaces)
+              (char ',')
+        )
+
   body <-
     pManySpaces
       *> between
-        (pOneKeyword leftParenthesis)
-        (pOneKeyword rightParenthesis)
+        (pOneKeyword leftCurlyBrace)
+        (pOneKeyword rightCurlyBrace)
         (pManySpaces *> pContractBody <* pManySpaces)
 
   return $
     InterfaceDefinition
       { interfaceName = name,
-        interfaceInheritanceSpecifiers = iSpecicier,
+        interfaceInheritanceSpecifiers = fromMaybe [] iSpecicier,
         interfaceBody = body
       }
 
@@ -229,14 +242,14 @@ pLibraryDefinition = do
   name <-
     pManySpaces
       *> pOneKeyword "library"
-      *> pMany1Spaces
+      *> (pMany1Spaces <|> fail "space is required after keyword 'library'")
       *> pIdentifier
       <* pManySpaces
   body <-
     pManySpaces
       *> between
-        (pOneKeyword leftParenthesis)
-        (pOneKeyword rightParenthesis)
+        (pOneKeyword leftCurlyBrace)
+        (pOneKeyword rightCurlyBrace)
         (pManySpaces *> pContractBody <* pManySpaces)
   return $
     LibraryDefinition
