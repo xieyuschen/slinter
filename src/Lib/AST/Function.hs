@@ -83,7 +83,6 @@ pFunctionDefinition = do
           (pOneKeyword rightCurlyBrace)
           (many $ pState <* pManySpaces)
 
-  -- why 'many anyChar' doesn't work?
   return
     ( FunctionDefinition
         { fnDefName = name,
@@ -114,7 +113,7 @@ pReturnsClause =
   do
     pManySpaces
       *> pOneKeyword keywordReturns
-      *> pMany1Spaces
+      *> pManySpaces
       *> pFunctionReturnTypeWithQuote
       <* pManySpaces
 

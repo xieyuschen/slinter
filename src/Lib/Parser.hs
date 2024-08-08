@@ -81,6 +81,8 @@ pBool =
 isUnderscore :: Char -> Bool
 isUnderscore = (== '_')
 
+-- todo: currently the pIdentifier will stop once the character could not be recognized as a vliad char
+-- for example variable&abc will stop parsing at '&', think about whether we can improve it or not
 pIdentifier :: Parser Text
 pIdentifier = do
   first <- letter <|> char '_'
