@@ -7,7 +7,7 @@ import Data.Functor (($>))
 import Data.Maybe (fromMaybe, listToMaybe)
 import Lib.AST.Expr (pFnCallArgs)
 import Lib.AST.Function (pFnDeclModifierInvocation, pFunctionDefinition)
-import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ContractBodyFieldSum (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), FunctionDefinition (fnDefName), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon)
+import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), FunctionDefinition (fnDefName), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon, CBFSSum (..))
 import Lib.AST.Pragma (pComment, pUsingDirective)
 import Lib.AST.Stat (pState, pStateVariable)
 import Lib.AST.Type (pInt, pType, pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
@@ -170,10 +170,10 @@ pContractBody :: Parser ContractBody
 pContractBody = do
   all <-
     sepEndBy
-      ( try pComment $> CBFSSumComments
+      (   CBFSSumComment <$> try pComment 
           <|> CBFSSumUsingDirective <$> try pUsingDirective
-          <|> CBFSSumConstructor <$> try pConstructorDefinition
-          <|> CBFSSumFunction <$> try pFunctionDefinition
+          <|> CBFSSumConstructorDefinition <$> try pConstructorDefinition
+          <|> CBFSSumFunctionDefinition <$> try pFunctionDefinition
           <|> CBFSSumModifierDefinition <$> try pModifierDefinition
           <|> CBFSSumStructure <$> try pTypeStruct
           <|> CBFSSumSTypeEnum <$> try pTypeEnum
@@ -188,7 +188,7 @@ pContractBody = do
   return $
     ContractBody
       { ctBodyConstructor = Nothing,
-        ctBodyFunctions = [v | CBFSSumFunction v <- all],
+        ctBodyFunctions = [v | CBFSSumFunctionDefinition v <- all],
         ctBodyModifiers = [v | CBFSSumModifierDefinition v <- all],
         ctBodyStructDefinitions = [v | CBFSSumStructure v <- all],
         ctBodyEnumDefinitions = [v | CBFSSumSTypeEnum v <- all],
@@ -197,9 +197,9 @@ pContractBody = do
         ctBodyEventDefinitions = [v | CBFSSumEventDefinition v <- all],
         ctBodyErrorDefinitions = [v | CBFSSumErrorDefinition v <- all],
         ctBodyUsingDirectives = [v | CBFSSumUsingDirective v <- all],
-        ctBodyReceiveFunctions = filter (\f -> fnDefName f == FnReceive) [v | CBFSSumFunction v <- all],
-        ctBodyFallbackFunctions = filter (\f -> fnDefName f == FnFallback) [v | CBFSSumFunction v <- all],
-        ctBodyAllFields = all
+        ctBodyReceiveFunctions = filter (\f -> fnDefName f == FnReceive) [v | CBFSSumFunctionDefinition v <- all],
+        ctBodyFallbackFunctions = filter (\f -> fnDefName f == FnFallback) [v | CBFSSumFunctionDefinition v <- all]
+        -- ctBodyAllFields = all
       }
 
 pInterfaceDefinition :: Parser InterfaceDefinition

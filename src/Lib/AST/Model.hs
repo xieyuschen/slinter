@@ -1,9 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Lib.AST.Model where
 
 import Data.Text (Text)
 import Lib.Parser (SemVer)
+import SumTypes.TH
 
 keywordLogicalOr :: Text
 keywordLogicalOr = "||"
@@ -562,21 +565,6 @@ data ContractBodyField
   | CtEmptyLine
   deriving (Show, Eq)
 
-data ContractBodyFieldSum
-  = CBFSSumConstructor ConstructorDefinition
-  | CBFSSumFunction FunctionDefinition
-  | CBFSSumModifierDefinition ModifierDefinition
-  | CBFSSumStructure Structure
-  | CBFSSumSTypeEnum STypeEnum
-  | CBFSSumUserDefinedValueTypeDefinition UserDefinedValueTypeDefinition
-  | CBFSSumStateVariable StateVariable
-  | CBFSSumEventDefinition EventDefinition
-  | CBFSSumErrorDefinition ErrorDefinition
-  | CBFSSumUsingDirective UsingDirective
-  | CBFSSumContractBodyFieldSum ContractBodyFieldSum
-  | CBFSSumComments
-  deriving (Show, Eq)
-
 data ContractBody = ContractBody
   { ctBodyConstructor :: Maybe ConstructorDefinition,
     ctBodyFunctions :: [FunctionDefinition],
@@ -589,7 +577,41 @@ data ContractBody = ContractBody
     ctBodyStateVariables :: [StateVariable],
     ctBodyEventDefinitions :: [EventDefinition],
     ctBodyErrorDefinitions :: [ErrorDefinition],
-    ctBodyUsingDirectives :: [UsingDirective],
-    ctBodyAllFields :: [ContractBodyFieldSum]
+    ctBodyUsingDirectives :: [UsingDirective]
+    -- todo: fix me: when using haskell template to generate the code,
+    -- the code place in the file matters
+    -- the generated CBFSSum type cannot be referenced at the code above the 'constructSumType'
+    -- however, when i move the data definition below the other structures cannot visit 'ContractBody'
+    --ctBodyAllFields :: [CBFSSum]
   }
   deriving (Show, Eq)
+
+constructSumType "CBFSSum" defaultSumTypeOptions [
+  ''ConstructorDefinition, ''FunctionDefinition, ''ModifierDefinition
+  , ''Structure, ''STypeEnum, ''UserDefinedValueTypeDefinition
+  , ''StateVariable, ''EventDefinition , ''ErrorDefinition 
+  , ''UsingDirective , ''Comment
+  ]
+
+deriving instance Show CBFSSum
+deriving instance Eq CBFSSum
+
+-- SolFile stands all definitions and the filename of a sol file,
+-- which typically ends with file extension `.sol`
+data SolFile = SolFile {
+  solFileName :: String, 
+  solPragma :: Pragma,
+  solSpdxLicense :: SPDXComment,
+  solImprotDirectives :: [ImportDirective],
+  solUsingDirectives :: [UsingDirective],
+  solContracts :: [ContractDefinition],
+  solInterfaces :: [InterfaceDefinition],
+  solLibraries :: [LibraryDefinition],
+  solFunctions :: [FunctionDefinition],
+  solConstantVars :: [StateVariable],
+  solStructs:: [Structure],
+  solEnums :: [STypeEnum],
+  solUserDefineValueType :: [UserDefinedValueTypeDefinition],
+  solErrors :: [ErrorDefinition],
+  solEvents :: [EventDefinition]
+}  deriving (Show, Eq)
