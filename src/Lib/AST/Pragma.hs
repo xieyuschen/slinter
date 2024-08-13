@@ -1,6 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Pragma where
+module Lib.AST.Pragma
+  ( pSPDXComment,
+    pComment,
+    pPragma,
+    pImportDirective,
+    pUsingDirective,
+    pUsingType,
+    pUsingField,
+    pImportAliases,
+  )
+where
 
 import Control.Applicative (Applicative (liftA2))
 import Control.Monad (guard, when)

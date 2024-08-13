@@ -1,6 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Function where
+module Lib.AST.Function
+  ( pFunctionDefinition,
+    pFnDeclModifierInvocation,
+    pFunctionDecorators,
+    pReturnsClause,
+  )
+where
 
 import Control.Applicative
   ( Alternative (),
@@ -46,6 +52,7 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
+import Lib.AST.Pragma (pComment)
 import Lib.AST.Stat (pState)
 import Lib.AST.Type (pType)
 import Lib.AST.Util

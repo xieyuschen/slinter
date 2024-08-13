@@ -3,10 +3,10 @@
 module Lib.AST.DefinitionSpec (spec) where
 
 import Control.Monad (forM_)
-import Lib.AST.Definition (pContractBody, pErrorDefinition, pEventDefinition, pInterfaceDefinition, pLibraryDefinition, pModifierDefinition)
+import Lib.AST.Definition
 import Lib.AST.Model
 import Lib.TestCommon (exactlyParserVerifier, leftRightJustifier, newParserVerifier, resultIsRight)
-import Test.Hspec (Spec)
+import Test.Hspec
 
 spec :: Spec
 spec = do
@@ -16,6 +16,35 @@ spec = do
   parseErrorDefintionSpec
   parseInterfaceDefintionSpec
   parseLibraryDefinitionSpec
+  parseContractSpec
+
+-- because the parsed result is too long(3k characters),
+-- and actually they are all tested in the respective parsers,
+-- so we only test the right or left of the result instead of match the result with expectation exactly
+parseContractSpec :: Spec
+parseContractSpec = do
+  let testCases =
+        [ ( "contract Counter { \
+            \   uint256 public count;\
+            \   // function to get the current count \n \
+            \   function get() public view returns (uint256) {\
+            \       return count;\
+            \    } \
+            \}",
+            resultIsRight,
+            ""
+          ),
+          ( "contract Counter {\n    uint256 public count;\n\n    // Function to get the current count\n    function get() public view returns (uint256) {\n        return count;\n    }\n\n    // Function to increment count by 1\n    function inc() public {\n        count += 1;\n    }\n\n    // Function to decrement count by 1\n    function dec() public {\n        // This function will fail if count = 0\n        count -= 1;\n    }\n}",
+            resultIsRight,
+            ""
+          )
+        ]
+
+  forM_ testCases $
+    newParserVerifier
+      leftRightJustifier
+      "parse contract correctly"
+      pContractDefinition
 
 parseModifierDefinitionSpec :: Spec
 parseModifierDefinitionSpec = do
@@ -261,7 +290,7 @@ parseContractBodySpec = do
             resultIsRight,
             ""
           ),
-          ( "function inc(string name) public pure { count += 1; } \n\
+          ( "//123\nfunction inc(string name) public pure { count += 1; } \n\
             \modifier ExampleM(uint256 memory hello, string str); \n\
             \constructor() {} \n\
             \struct empty { \n uint128 price; \n address addr; \n }  \n\
@@ -275,6 +304,10 @@ parseContractBodySpec = do
             \function fallback(string name) public pure { count += 1; } \n\
             \function getResult() external view returns(uint);\n\
             \ ",
+            resultIsRight,
+            ""
+          ),
+          ( "\n    uint256 public count;\n\n    // Function to get the current count\n    function get() public view returns (uint256) {\n        return count;\n    }\n\n    // Function to increment count by 1\n    function inc() public {\n        count += 1;\n    }\n\n    // Function to decrement count by 1\n    function dec() public {\n        // This function will fail if count = 0\n        count -= 1;\n    }",
             resultIsRight,
             ""
           )
@@ -404,9 +437,27 @@ parseLibraryDefinitionSpec :: Spec
 parseLibraryDefinitionSpec = do
   let testCases =
         [ ( "library Lib{}",
-            Right (LibraryDefinition {libraryName = "Lib", libraryBody = ContractBody {ctBodyConstructor = Nothing, ctBodyFunctions = [], ctBodyModifiers = [], ctBodyFallbackFunctions = [], ctBodyReceiveFunctions = [], ctBodyStructDefinitions = [], ctBodyEnumDefinitions = [], ctBodyUserDefinedValueTypeDefinition = [], ctBodyStateVariables = [], ctBodyEventDefinitions = [], ctBodyErrorDefinitions = [], ctBodyUsingDirectives = []
-            -- , ctBodyAllFields = []
-            }}),
+            Right
+              ( LibraryDefinition
+                  { libraryName = "Lib",
+                    libraryBody =
+                      ContractBody
+                        { ctBodyConstructor = Nothing,
+                          ctBodyFunctions = [],
+                          ctBodyModifiers = [],
+                          ctBodyFallbackFunctions = [],
+                          ctBodyReceiveFunctions = [],
+                          ctBodyStructDefinitions = [],
+                          ctBodyEnumDefinitions = [],
+                          ctBodyUserDefinedValueTypeDefinition = [],
+                          ctBodyStateVariables = [],
+                          ctBodyEventDefinitions = [],
+                          ctBodyErrorDefinitions = [],
+                          ctBodyUsingDirectives = []
+                          -- , ctBodyAllFields = []
+                        }
+                  }
+              ),
             ""
           ),
           ( "library Lib{function getResult() external view returns(uint);}",

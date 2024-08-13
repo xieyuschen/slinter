@@ -1,7 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Lib.AST.Type where
+module Lib.AST.Type
+  ( pType,
+    pUserDefinedValueTypeDefinition,
+    pTypeEnum,
+    pTypeStruct,
+    pInt,
+    pTypeDefinition,
+    pTypeWithDesc,
+  )
+where
 
 import Control.Applicative (asum, optional)
 import Control.Arrow (Arrow (first))
