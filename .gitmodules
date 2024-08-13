@@ -1,0 +1,3 @@
+[submodule "src/Lib/x-sum-type-boilerplate"]
+	path = src/Lib/x-sum-type-boilerplate
+	url = https://github.com/xieyuschen/x-sum-type-boilerplate

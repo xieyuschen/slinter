@@ -325,8 +325,8 @@ parseInterfaceDefintionSpec = do
                           ctBodyStateVariables = [],
                           ctBodyEventDefinitions = [],
                           ctBodyErrorDefinitions = [],
-                          ctBodyUsingDirectives = [],
-                          ctBodyAllFields = [CBFSSumFunction (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
+                          ctBodyUsingDirectives = []
+                          -- ctBodyAllFields = [CBFSSumFunctionDefinition (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
                         }
                   }
               ),
@@ -352,8 +352,8 @@ parseInterfaceDefintionSpec = do
                           ctBodyStateVariables = [],
                           ctBodyEventDefinitions = [],
                           ctBodyErrorDefinitions = [],
-                          ctBodyUsingDirectives = [],
-                          ctBodyAllFields = [CBFSSumFunction (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
+                          ctBodyUsingDirectives = []
+                          -- ctBodyAllFields = [CBFSSumFunctionDefinition (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
                         }
                   }
               ),
@@ -385,8 +385,8 @@ parseInterfaceDefintionSpec = do
                           ctBodyStateVariables = [],
                           ctBodyEventDefinitions = [],
                           ctBodyErrorDefinitions = [],
-                          ctBodyUsingDirectives = [],
-                          ctBodyAllFields = [CBFSSumFunction (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
+                          ctBodyUsingDirectives = []
+                          -- ctBodyAllFields = [CBFSSumFunctionDefinition (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
                         }
                   }
               ),
@@ -404,7 +404,9 @@ parseLibraryDefinitionSpec :: Spec
 parseLibraryDefinitionSpec = do
   let testCases =
         [ ( "library Lib{}",
-            Right (LibraryDefinition {libraryName = "Lib", libraryBody = ContractBody {ctBodyConstructor = Nothing, ctBodyFunctions = [], ctBodyModifiers = [], ctBodyFallbackFunctions = [], ctBodyReceiveFunctions = [], ctBodyStructDefinitions = [], ctBodyEnumDefinitions = [], ctBodyUserDefinedValueTypeDefinition = [], ctBodyStateVariables = [], ctBodyEventDefinitions = [], ctBodyErrorDefinitions = [], ctBodyUsingDirectives = [], ctBodyAllFields = []}}),
+            Right (LibraryDefinition {libraryName = "Lib", libraryBody = ContractBody {ctBodyConstructor = Nothing, ctBodyFunctions = [], ctBodyModifiers = [], ctBodyFallbackFunctions = [], ctBodyReceiveFunctions = [], ctBodyStructDefinitions = [], ctBodyEnumDefinitions = [], ctBodyUserDefinedValueTypeDefinition = [], ctBodyStateVariables = [], ctBodyEventDefinitions = [], ctBodyErrorDefinitions = [], ctBodyUsingDirectives = []
+            -- , ctBodyAllFields = []
+            }}),
             ""
           ),
           ( "library Lib{function getResult() external view returns(uint);}",
@@ -424,8 +426,8 @@ parseLibraryDefinitionSpec = do
                           ctBodyStateVariables = [],
                           ctBodyEventDefinitions = [],
                           ctBodyErrorDefinitions = [],
-                          ctBodyUsingDirectives = [],
-                          ctBodyAllFields = [CBFSSumFunction (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
+                          ctBodyUsingDirectives = []
+                          -- ctBodyAllFields = [CBFSSumFunctionDefinition (FunctionDefinition {fnDefName = FnNormal "getResult", fnState = FnStateView, fnVisibility = FnExternal, fnModifierInvocations = [], fnFnOverrideSpecifier = Nothing, fnIsVirtual = False, fargs = [], fnReturnTyp = Just (STypeUint 256), fnBody = Nothing})]
                         }
                   }
               ),
