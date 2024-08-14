@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Lib.AST.Model where
 
@@ -435,6 +435,7 @@ data Stat
   | StatEmit EmitStatement
   | StatRevert RevertStatement
   | StatAssmbly -- don't support assmbly yet
+  | StatComment Comment
   deriving (Show, Eq)
 
 type ImportedPath = Text
@@ -582,36 +583,70 @@ data ContractBody = ContractBody
     -- the code place in the file matters
     -- the generated CBFSSum type cannot be referenced at the code above the 'constructSumType'
     -- however, when i move the data definition below the other structures cannot visit 'ContractBody'
-    --ctBodyAllFields :: [CBFSSum]
+    -- ctBodyAllFields :: [CBFSSum]
   }
   deriving (Show, Eq)
 
-constructSumType "CBFSSum" defaultSumTypeOptions [
-  ''ConstructorDefinition, ''FunctionDefinition, ''ModifierDefinition
-  , ''Structure, ''STypeEnum, ''UserDefinedValueTypeDefinition
-  , ''StateVariable, ''EventDefinition , ''ErrorDefinition 
-  , ''UsingDirective , ''Comment
+constructSumType
+  "CBFSSum"
+  defaultSumTypeOptions
+  [ ''ConstructorDefinition,
+    ''FunctionDefinition,
+    ''ModifierDefinition,
+    ''Structure,
+    ''STypeEnum,
+    ''UserDefinedValueTypeDefinition,
+    ''StateVariable,
+    ''EventDefinition,
+    ''ErrorDefinition,
+    ''UsingDirective,
+    ''Comment
   ]
 
 deriving instance Show CBFSSum
+
 deriving instance Eq CBFSSum
 
 -- SolFile stands all definitions and the filename of a sol file,
 -- which typically ends with file extension `.sol`
-data SolFile = SolFile {
-  solFileName :: String, 
-  solPragma :: Pragma,
-  solSpdxLicense :: SPDXComment,
-  solImprotDirectives :: [ImportDirective],
-  solUsingDirectives :: [UsingDirective],
-  solContracts :: [ContractDefinition],
-  solInterfaces :: [InterfaceDefinition],
-  solLibraries :: [LibraryDefinition],
-  solFunctions :: [FunctionDefinition],
-  solConstantVars :: [StateVariable],
-  solStructs:: [Structure],
-  solEnums :: [STypeEnum],
-  solUserDefineValueType :: [UserDefinedValueTypeDefinition],
-  solErrors :: [ErrorDefinition],
-  solEvents :: [EventDefinition]
-}  deriving (Show, Eq)
+data SolFile = SolFile
+  { solFileName :: String,
+    solPragma :: Pragma,
+    solSpdxLicense :: SPDXComment,
+    solImprotDirectives :: [ImportDirective],
+    solUsingDirectives :: [UsingDirective],
+    solContracts :: [ContractDefinition],
+    solInterfaces :: [InterfaceDefinition],
+    solLibraries :: [LibraryDefinition],
+    solFunctions :: [FunctionDefinition],
+    solConstantVars :: [StateVariable],
+    solStructs :: [Structure],
+    solEnums :: [STypeEnum],
+    solUserDefineValueType :: [UserDefinedValueTypeDefinition],
+    solErrors :: [ErrorDefinition],
+    solEvents :: [EventDefinition]
+  }
+  deriving (Show, Eq)
+
+constructSumType
+  "SolFileSum"
+  defaultSumTypeOptions
+  [ ''Pragma,
+    ''SPDXComment,
+    ''ImportDirective,
+    ''UsingDirective,
+    ''ContractDefinition,
+    ''InterfaceDefinition,
+    ''LibraryDefinition,
+    ''FunctionDefinition,
+    ''StateVariable,
+    ''Structure,
+    ''STypeEnum,
+    ''UserDefinedValueTypeDefinition,
+    ''ErrorDefinition,
+    ''EventDefinition
+  ]
+
+deriving instance Show SolFileSum
+
+deriving instance Eq SolFileSum

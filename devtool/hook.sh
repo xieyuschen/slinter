@@ -39,10 +39,11 @@ $command
 ensure_hook_file_exists "$pre_push_hook" "$pre_push_sample"
 ensure_hook_file_exists "$pre_commit_hook" "$pre_commit_sample"
 
-add_command_to_hook "$pre_push_hook" "cabal test"
+add_command_to_hook "$pre_push_hook" "cabal build --enable-tests --enable-benchmarks all && cabal test"
 
 pre_commit_commands=$(cat <<'EOF'
 ormolu --mode inplace $(find . -name '*.hs')
+find src tests -name '*.hs' | xargs wc -l
 git add .
 echo "format the code and then run cmamnd 'git add .'"
 EOF

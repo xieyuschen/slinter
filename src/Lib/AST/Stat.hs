@@ -1,6 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Stat where
+module Lib.AST.Stat
+  ( pState,
+    pStateVariable,
+    pEmitStatement,
+    pCatchStatment,
+    pTryStatement,
+    pDoWhileStatement,
+    pWhileStatement,
+    pForStatement,
+    pIfStatement,
+    pAssignStat,
+    pStVarDefStatement,
+    pRevertStatement,
+  )
+where
 
 import Control.Applicative (liftA2)
 import Control.Exception (catches)
@@ -76,6 +90,7 @@ pState =
     <|> StatRevert <$> try pRevertStatement
     -- put the expr statement at the last to avoid some keywords are treated as expression
     <|> StatExpr <$> try pExprStatment
+    <|> StatComment <$> try pComment
 
 pExprStatment :: Parser SExpr
 pExprStatment = pManySpaces *> pExpression <* pManySpaces <* pOneKeyword semicolon

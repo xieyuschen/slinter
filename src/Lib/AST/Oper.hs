@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Oper where
+module Lib.AST.Oper (pOperator, allOperators, pOpRank, pOpRankLast) where
 
 import Control.Monad.State (guard)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Lib.AST.Model (Operator (..))
 import Lib.Parser (Parser, pManySpaces)
-import Text.Parsec
+import Text.Parsec (getInput, setInput, try, (<|>))
 
 pOperator3Char :: Parser Operator
 pOperator3Char = do
@@ -74,6 +74,23 @@ pOperator = do
            <|> try pOperator1Char
        )
 
+allOperators :: [[Operator]]
+allOperators =
+  reverse
+    [ opRank2,
+      opRank3,
+      opRank4,
+      opRank5,
+      opRank6,
+      opRank7,
+      opRank8,
+      opRank9,
+      opRank10,
+      opRank11,
+      opRank12,
+      opRank13
+    ]
+
 -- we use the same rank mentioned in the documentation to refer the precedences among different
 -- operators, in the format of pOpRank{n} such as pOpRank1 and so on
 -- https://docs.soliditylang.org/en/latest/types.html#order-of-precedence-of-operators
@@ -112,6 +129,7 @@ opRank13 :: [Operator]
 opRank13 = [LogicalOr]
 
 -- todo: support op14 Ternary operator, and assignment
+opRank14 :: [Operator]
 opRank14 =
   [ CompoundAddition,
     CompoundMinus,
@@ -127,18 +145,20 @@ opRank14 =
 
 -- todo: support rank15 comma
 
+pOpRank :: [Operator] -> Parser Operator
+pOpRank ops = do
+  op <- pManySpaces >> pOperator
+  guard $ op `elem` ops
+  return op
+
 pOpRankLast :: [Operator] -> Parser Operator
 pOpRankLast ops = do
   op <- pManySpaces >> pOperator
   guard $ op `notElem` ops
   return op
 
+opRank5 :: [Operator]
 opRank5 = [Minus, ArithmeticAddition]
 
+opRank4 :: [Operator]
 opRank4 = [ArithmeticMultiplication, ArithmeticDivision]
-
-pOpRank :: [Operator] -> Parser Operator
-pOpRank ops = do
-  op <- pManySpaces >> pOperator
-  guard $ op `elem` ops
-  return op

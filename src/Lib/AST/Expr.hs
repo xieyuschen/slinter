@@ -1,6 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Expr where
+module Lib.AST.Expr
+  ( pExpression,
+    pFnCallArgs,
+    pFuncCallArgsFormatList,
+    pElemIndex,
+    pExprTenary,
+    pFuncCall,
+    pSelection,
+  )
+where
 
 import Control.Applicative (Applicative (liftA2), optional)
 import Control.Monad (guard)
@@ -13,7 +22,42 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Debug.Trace (trace)
 import Lib.AST.Model
+  ( ExprBinary (ExprBinary),
+    ExprFnCall (..),
+    ExprIndex (ExprIndex, elemBase, elemIndex),
+    ExprSelection (ExprSelection, selectionBase, selectionField),
+    ExprTernary (..),
+    ExprUnary (..),
+    FnCallArgs (..),
+    Literal (..),
+    Operator (Minus),
+    SExpr
+      ( SExprB,
+        SExprD,
+        SExprF,
+        SExprI,
+        SExprL,
+        SExprN,
+        SExprParentheses,
+        SExprS,
+        SExprT,
+        SExprU,
+        SExprVar
+      ),
+    colon,
+    leftCurlyBrace,
+    leftParenthesis,
+    leftSquareBracket,
+    rightCurlyBrace,
+    rightParenthesis,
+    rightSquareBracket,
+  )
 import Lib.AST.Oper
+  ( allOperators,
+    pOpRank,
+    pOpRankLast,
+    pOperator,
+  )
 import Lib.Parser
   ( Parser,
     pBool,
@@ -25,23 +69,14 @@ import Lib.Parser
     pString,
   )
 import Text.Parsec
-
-ops :: [[Operator]]
-ops =
-  reverse
-    [ opRank2,
-      opRank3,
-      opRank4,
-      opRank5,
-      opRank6,
-      opRank7,
-      opRank8,
-      opRank9,
-      opRank10,
-      opRank11,
-      opRank12,
-      opRank13
-    ]
+  ( getInput,
+    many,
+    many1,
+    optionMaybe,
+    setInput,
+    try,
+    (<|>),
+  )
 
 pExpression :: Parser SExpr
 pExpression =
@@ -58,7 +93,7 @@ pExpression =
             rest
     )
     pBasicExpr
-    (pOpRankLast (concat ops) : fmap pOpRank ops)
+    (pOpRankLast (concat allOperators) : fmap pOpRank allOperators)
 
 pBasicExpr :: Parser SExpr
 pBasicExpr =

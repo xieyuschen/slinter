@@ -42,6 +42,10 @@ parseCommentSpec = do
             Right "   helloworld _*&^",
             ""
           ),
+          ( "//   helloworld _*&^\n function abc()",
+            Right "   helloworld _*&^",
+            " function abc()"
+          ),
           ( "// helloworld _*&^",
             Left ["lf new-line", "crlf new-line"], -- no ending line, won't be treated as a comment
             "// helloworld _*&^"

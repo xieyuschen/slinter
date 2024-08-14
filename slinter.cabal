@@ -41,8 +41,8 @@ common common-depends
 library internallib
     import: common-depends
     exposed-modules:
+        Lib.AST.File,
         Lib.AST.Function,
-        Lib.AST.Contract,
         Lib.AST.Pragma,
         Lib.AST.Model,
         Lib.AST.Type,
@@ -76,8 +76,8 @@ test-suite tests
     hs-source-dirs: tests
     default-language: Haskell2010
     other-modules:
+        Lib.AST.FileSpec,
         Lib.AST.FunctionSpec,
-        Lib.AST.ContractSpec,
         Lib.AST.PragmaSpec,
         Lib.AST.TypeSpec,
         Lib.AST.ExprSpec,

@@ -1,13 +1,49 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.AST.Definition where
+module Lib.AST.Definition
+  ( pModifierDefinition,
+    pEventDefinition,
+    pErrorDefinition,
+    pConstructorDefinition,
+    pInterfaceDefinition,
+    pLibraryDefinition,
+    pContractDefinition,
+    pContractBody,
+  )
+where
 
+import Control.Monad (when)
 import Data.Either
 import Data.Functor (($>))
-import Data.Maybe (fromMaybe, listToMaybe)
+import Data.Maybe (fromMaybe, isJust, listToMaybe)
 import Lib.AST.Expr (pFnCallArgs)
 import Lib.AST.Function (pFnDeclModifierInvocation, pFunctionDefinition)
-import Lib.AST.Model (ConstructorDefinition (..), ConstructorMutability (..), ContractBody (..), ErrorDefinition (..), ErrorParameter (ErrorParameter, errParamName, errParamType), EventDefinition (..), EventParameter (..), FnDecorator (..), FnModifierInvocation, FnName (..), FunctionDefinition (fnDefName), InheritanceSpecifier (..), InterfaceDefinition (..), LibraryDefinition (..), ModifierDefinition (..), extractFnDecOs, leftCurlyBrace, leftParenthesis, rightCurlyBrace, rightParenthesis, semicolon, CBFSSum (..))
+import Lib.AST.Model
+  ( CBFSSum (..),
+    ConstructorDefinition (..),
+    ConstructorMutability (..),
+    ContractBody (..),
+    ContractDefinition (..),
+    ErrorDefinition (..),
+    ErrorParameter (ErrorParameter, errParamName, errParamType),
+    EventDefinition (..),
+    EventParameter (..),
+    FnDecorator (..),
+    FnModifierInvocation,
+    FnName (..),
+    FunctionDefinition (fnDefName),
+    InheritanceSpecifier (..),
+    InterfaceDefinition (..),
+    LibraryDefinition (..),
+    ModifierDefinition (..),
+    extractFnDecOs,
+    keywordContract,
+    leftCurlyBrace,
+    leftParenthesis,
+    rightCurlyBrace,
+    rightParenthesis,
+    semicolon,
+  )
 import Lib.AST.Pragma (pComment, pUsingDirective)
 import Lib.AST.Stat (pState, pStateVariable)
 import Lib.AST.Type (pInt, pType, pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
@@ -165,43 +201,6 @@ pConstructorDefinition = do
         constructorParamList = parameters
       }
 
--- pContractBody parses the contract body quoted with '{}'
-pContractBody :: Parser ContractBody
-pContractBody = do
-  all <-
-    sepEndBy
-      (   CBFSSumComment <$> try pComment 
-          <|> CBFSSumUsingDirective <$> try pUsingDirective
-          <|> CBFSSumConstructorDefinition <$> try pConstructorDefinition
-          <|> CBFSSumFunctionDefinition <$> try pFunctionDefinition
-          <|> CBFSSumModifierDefinition <$> try pModifierDefinition
-          <|> CBFSSumStructure <$> try pTypeStruct
-          <|> CBFSSumSTypeEnum <$> try pTypeEnum
-          <|> CBFSSumUserDefinedValueTypeDefinition <$> try pUserDefinedValueTypeDefinition
-          <|> CBFSSumEventDefinition <$> try pEventDefinition
-          <|> CBFSSumErrorDefinition <$> try pErrorDefinition
-          -- the state variable parser should be put at last to avoid parse the other keyword as a type
-          <|> CBFSSumStateVariable <$> try pStateVariable
-      )
-      pManySpaces
-
-  return $
-    ContractBody
-      { ctBodyConstructor = Nothing,
-        ctBodyFunctions = [v | CBFSSumFunctionDefinition v <- all],
-        ctBodyModifiers = [v | CBFSSumModifierDefinition v <- all],
-        ctBodyStructDefinitions = [v | CBFSSumStructure v <- all],
-        ctBodyEnumDefinitions = [v | CBFSSumSTypeEnum v <- all],
-        ctBodyUserDefinedValueTypeDefinition = [v | CBFSSumUserDefinedValueTypeDefinition v <- all],
-        ctBodyStateVariables = [v | CBFSSumStateVariable v <- all],
-        ctBodyEventDefinitions = [v | CBFSSumEventDefinition v <- all],
-        ctBodyErrorDefinitions = [v | CBFSSumErrorDefinition v <- all],
-        ctBodyUsingDirectives = [v | CBFSSumUsingDirective v <- all],
-        ctBodyReceiveFunctions = filter (\f -> fnDefName f == FnReceive) [v | CBFSSumFunctionDefinition v <- all],
-        ctBodyFallbackFunctions = filter (\f -> fnDefName f == FnFallback) [v | CBFSSumFunctionDefinition v <- all]
-        -- ctBodyAllFields = all
-      }
-
 pInterfaceDefinition :: Parser InterfaceDefinition
 pInterfaceDefinition = do
   name <-
@@ -255,4 +254,76 @@ pLibraryDefinition = do
     LibraryDefinition
       { libraryBody = body,
         libraryName = name
+      }
+
+pContractDefinition :: Parser ContractDefinition
+pContractDefinition = do
+  -- if the abstract keyword exist, we must consume at least 1 space
+  abs <-
+    pManySpaces
+      *> optionMaybe (try $ pOneKeyword "abstract")
+  when (isJust abs) pMany1Spaces
+  contractName <-
+    pOneKeyword keywordContract
+      >> pMany1Spaces
+        *> pIdentifier
+        <* pManySpaces
+  inherSpecifiers <-
+    optionMaybe $
+      pOneKeyword "is"
+        *> pMany1Spaces
+        *> sepBy
+          (pManySpaces *> pInheritanceSpecifier <* pManySpaces)
+          (char ',')
+
+  body <-
+    pManySpaces
+      *> between
+        (pManySpaces >> pOneKeyword leftCurlyBrace >> pManySpaces)
+        (pManySpaces >> pOneKeyword rightCurlyBrace >> pManySpaces)
+        pContractBody
+  return
+    ContractDefinition
+      { contractName = contractName,
+        contractIsAbstract = isJust abs,
+        contractInheritanceSpecifiers = fromMaybe [] inherSpecifiers,
+        contractBody = body
+      }
+
+-- pContractBody parses the contract body quoted with '{}'
+pContractBody :: Parser ContractBody
+pContractBody = do
+  all <-
+    pManySpaces
+      *> sepEndBy
+        ( CBFSSumComment <$> try pComment
+            <|> CBFSSumUsingDirective <$> try pUsingDirective
+            <|> CBFSSumConstructorDefinition <$> try pConstructorDefinition
+            <|> CBFSSumFunctionDefinition <$> try pFunctionDefinition
+            <|> CBFSSumModifierDefinition <$> try pModifierDefinition
+            <|> CBFSSumStructure <$> try pTypeStruct
+            <|> CBFSSumSTypeEnum <$> try pTypeEnum
+            <|> CBFSSumUserDefinedValueTypeDefinition <$> try pUserDefinedValueTypeDefinition
+            <|> CBFSSumEventDefinition <$> try pEventDefinition
+            <|> CBFSSumErrorDefinition <$> try pErrorDefinition
+            -- the state variable parser should be put at last to avoid parse the other keyword as a type
+            <|> CBFSSumStateVariable <$> try pStateVariable
+        )
+        pManySpaces
+
+  return $
+    ContractBody
+      { ctBodyConstructor = Nothing,
+        ctBodyFunctions = [v | CBFSSumFunctionDefinition v <- all],
+        ctBodyModifiers = [v | CBFSSumModifierDefinition v <- all],
+        ctBodyStructDefinitions = [v | CBFSSumStructure v <- all],
+        ctBodyEnumDefinitions = [v | CBFSSumSTypeEnum v <- all],
+        ctBodyUserDefinedValueTypeDefinition = [v | CBFSSumUserDefinedValueTypeDefinition v <- all],
+        ctBodyStateVariables = [v | CBFSSumStateVariable v <- all],
+        ctBodyEventDefinitions = [v | CBFSSumEventDefinition v <- all],
+        ctBodyErrorDefinitions = [v | CBFSSumErrorDefinition v <- all],
+        ctBodyUsingDirectives = [v | CBFSSumUsingDirective v <- all],
+        ctBodyReceiveFunctions = filter (\f -> fnDefName f == FnReceive) [v | CBFSSumFunctionDefinition v <- all],
+        ctBodyFallbackFunctions = filter (\f -> fnDefName f == FnFallback) [v | CBFSSumFunctionDefinition v <- all]
+        -- ctBodyAllFields = all
       }
