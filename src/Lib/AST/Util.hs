@@ -22,8 +22,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Debug.Trace
 import Lib.AST.Model
+import Lib.AST.Parser
 import Lib.AST.Type
-import Lib.Parser
 import Text.Parsec
 
 pLocationModifier :: Parser DataLocation

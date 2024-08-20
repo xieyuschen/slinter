@@ -49,19 +49,19 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
+import Lib.AST.Parser
+  ( Parser,
+    pIdentifier,
+    pMany1Spaces,
+    pManySpaces,
+    pOneKeyword,
+  )
 import Lib.AST.Pragma (pComment)
 import Lib.AST.Type (pType)
 import Lib.AST.Util
   ( pFunctionArgs,
     pLocationModifier,
     pStateVariableConstrain,
-  )
-import Lib.Parser
-  ( Parser,
-    pIdentifier,
-    pMany1Spaces,
-    pManySpaces,
-    pOneKeyword,
   )
 import Text.Parsec
   ( between,

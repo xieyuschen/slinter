@@ -36,7 +36,8 @@ common common-depends
         hspec,
         parsec ^>=3.1.16.1,
         -- force to use my forked version
-        x-sum-type-boilerplate
+        x-sum-type-boilerplate,
+        optparse-applicative
         
 library internallib
     import: common-depends
@@ -51,7 +52,8 @@ library internallib
         Lib.AST.Util,
         Lib.AST.Oper,
         Lib.AST.Definition,
-        Lib.Parser
+        Lib.AST.Parser,
+        Lib.Command
     hs-source-dirs: src
 
 executable slinter
@@ -86,6 +88,6 @@ test-suite tests
         Lib.AST.UtilSpec,
         Lib.AST.DefinitionSpec,
         Lib.TestCommon,
-        Lib.ParserSpec
+        Lib.AST.ParserSpec
     build-tool-depends: hspec-discover:hspec-discover == 2.*
     ghc-options:    -fforce-recomp -Wall -Werror

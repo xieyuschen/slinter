@@ -2,7 +2,7 @@
 {-# LANGUAGE DoAndIfThenElse #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.Parser where
+module Lib.AST.Parser where
 
 import Control.Monad (guard)
 import Data.Char (chr)

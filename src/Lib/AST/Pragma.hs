@@ -55,9 +55,7 @@ import Lib.AST.Model
     semicolon,
   )
 import Lib.AST.Oper (pOperator)
-import Lib.AST.Type (pType)
-import Lib.AST.Util
-import Lib.Parser
+import Lib.AST.Parser
   ( Parser,
     pIdentifier,
     pMany1Spaces,
@@ -67,6 +65,8 @@ import Lib.Parser
     pSemVer,
     pString,
   )
+import Lib.AST.Type (pType)
+import Lib.AST.Util
 import Text.Parsec
 
 -- // SPDX-License-Identifier: MIT

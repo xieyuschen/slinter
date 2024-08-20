@@ -1,16 +1,17 @@
 module Lib.AST.File where
 
+import Data.Text (Text)
 import Lib.AST.Definition
 import Lib.AST.Function
-import Lib.AST.Model (SolFile (..), SolFileSum (..))
+import Lib.AST.Model (SolFile (..), SolFileSum (..), StateVariable (svConstrains), StateVariableConstrain (SVarConstant))
+import Lib.AST.Parser
 import Lib.AST.Pragma
 import Lib.AST.Stat (pStateVariable)
 import Lib.AST.Type (pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
-import Lib.Parser
 import Text.Parsec (sepEndBy, try, (<|>))
 
-pWholeSolFile :: Parser SolFile
-pWholeSolFile = do
+pWholeSolFile :: FilePath -> Parser SolFile
+pWholeSolFile filename = do
   spdx <- pManySpaces *> pSPDXComment
   pragma <- pManySpaces *> pPragma
 
@@ -33,21 +34,21 @@ pWholeSolFile = do
         pManySpaces
 
   return $
-    -- todo: finish me with the real data
     SolFile
-      { solUsingDirectives = [],
-        solUserDefineValueType = [],
-        solStructs = [],
+      { solUsingDirectives = [v | SolFileSumUsingDirective v <- all],
+        solUserDefineValueType = [v | SolFileSumUserDefinedValueTypeDefinition v <- all],
+        solStructs = [v | SolFileSumStructure v <- all],
         solSpdxLicense = spdx,
         solPragma = pragma,
-        solLibraries = [],
-        solInterfaces = [],
-        solImprotDirectives = [],
-        solFunctions = [],
-        solFileName = [],
-        solEvents = [],
-        solErrors = [],
-        solEnums = [],
-        solContracts = [],
-        solConstantVars = []
+        solLibraries = [v | SolFileSumLibraryDefinition v <- all],
+        solInterfaces = [v | SolFileSumInterfaceDefinition v <- all],
+        solImprotDirectives = [v | SolFileSumImportDirective v <- all],
+        solFunctions = [v | SolFileSumFunctionDefinition v <- all],
+        solFileName = filename,
+        solEvents = [v | SolFileSumEventDefinition v <- all],
+        solErrors = [v | SolFileSumErrorDefinition v <- all],
+        solEnums = [v | SolFileSumSTypeEnum v <- all],
+        solContracts = [v | SolFileSumContractDefinition v <- all],
+        solStateVars = [v | SolFileSumStateVariable v <- all],
+        solConstantVars = [v | SolFileSumStateVariable v <- all, SVarConstant `elem` svConstrains v]
       }

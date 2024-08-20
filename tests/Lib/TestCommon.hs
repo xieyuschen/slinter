@@ -7,7 +7,7 @@ import Data.Bifunctor (first)
 import Data.Either
 import Data.Text (Text)
 import qualified Data.Text as T
-import Lib.Parser
+import Lib.AST.Parser
 import Test.Hspec (Spec, describe, expectationFailure, it, shouldBe)
 import Text.Parsec.Error
 import Text.Parsec.Pos

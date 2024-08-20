@@ -4,8 +4,8 @@ module Lib.AST.PragmaSpec (spec) where
 
 import Control.Monad (forM_)
 import Lib.AST.Model
+import Lib.AST.Parser
 import Lib.AST.Pragma
-import Lib.Parser
 import Lib.TestCommon
 import Test.Hspec (Spec)
 

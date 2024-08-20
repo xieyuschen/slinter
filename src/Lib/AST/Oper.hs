@@ -6,7 +6,7 @@ import Control.Monad.State (guard)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Lib.AST.Model (Operator (..))
-import Lib.Parser (Parser, pManySpaces)
+import Lib.AST.Parser (Parser, pManySpaces)
 import Text.Parsec (getInput, setInput, try, (<|>))
 
 pOperator3Char :: Parser Operator

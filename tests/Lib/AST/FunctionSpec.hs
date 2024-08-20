@@ -5,7 +5,7 @@ module Lib.AST.FunctionSpec (spec) where
 import Control.Monad (forM_)
 import Lib.AST.Function
 import Lib.AST.Model
-import Lib.Parser (runSParser)
+import Lib.AST.Parser (runSParser)
 import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec, describe, it, shouldBe)
 

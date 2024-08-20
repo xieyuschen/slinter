@@ -5,7 +5,7 @@
 module Lib.AST.Model where
 
 import Data.Text (Text)
-import Lib.Parser (SemVer)
+import Lib.AST.Parser (SemVer)
 import SumTypes.TH
 
 keywordLogicalOr :: Text
@@ -610,7 +610,7 @@ deriving instance Eq CBFSSum
 -- SolFile stands all definitions and the filename of a sol file,
 -- which typically ends with file extension `.sol`
 data SolFile = SolFile
-  { solFileName :: String,
+  { solFileName :: FilePath,
     solPragma :: Pragma,
     solSpdxLicense :: SPDXComment,
     solImprotDirectives :: [ImportDirective],
@@ -620,6 +620,7 @@ data SolFile = SolFile
     solLibraries :: [LibraryDefinition],
     solFunctions :: [FunctionDefinition],
     solConstantVars :: [StateVariable],
+    solStateVars :: [StateVariable],
     solStructs :: [Structure],
     solEnums :: [STypeEnum],
     solUserDefineValueType :: [UserDefinedValueTypeDefinition],
