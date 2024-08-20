@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib.ParserSpec (spec) where
+module Lib.AST.ParserSpec (spec) where
 
 -- export multiple test functions is not supported, as the document reads:
 -- Each spec file has to export a top-level binding spec of type Spec.
 
 import Control.Monad (forM_)
-import Lib.Parser
+import Lib.AST.Parser
 import Lib.TestCommon (exactlyParserVerifier)
 import Test.Hspec (Spec)
 

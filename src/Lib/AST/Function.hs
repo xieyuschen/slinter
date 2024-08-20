@@ -52,11 +52,11 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
+import Lib.AST.Parser
 import Lib.AST.Pragma (pComment)
 import Lib.AST.Stat (pState)
 import Lib.AST.Type (pType)
 import Lib.AST.Util
-import Lib.Parser
 import Text.Parsec
 
 pFunctionDefinition :: Parser FunctionDefinition

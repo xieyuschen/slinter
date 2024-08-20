@@ -55,7 +55,7 @@ import Lib.AST.Model
     rightSquareBracket,
     semicolon,
   )
-import Lib.Parser
+import Lib.AST.Parser
   ( Parser,
     isUnderscore,
     pIdentifier,

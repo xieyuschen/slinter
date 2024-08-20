@@ -44,11 +44,11 @@ import Lib.AST.Model
     rightParenthesis,
     semicolon,
   )
+import Lib.AST.Parser (Parser, pIdentifier, pMany1Spaces, pManySpaces, pNumber, pOneKeyword)
 import Lib.AST.Pragma (pComment, pUsingDirective)
 import Lib.AST.Stat (pState, pStateVariable)
 import Lib.AST.Type (pInt, pType, pTypeEnum, pTypeStruct, pUserDefinedValueTypeDefinition)
 import Lib.AST.Util
-import Lib.Parser (Parser, pIdentifier, pMany1Spaces, pManySpaces, pNumber, pOneKeyword)
 import Text.Parsec (between, char, many, optionMaybe, sepBy, sepEndBy, try, (<|>))
 
 pConstructorMutability :: Parser ConstructorMutability

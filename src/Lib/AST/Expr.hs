@@ -58,7 +58,7 @@ import Lib.AST.Oper
     pOpRankLast,
     pOperator,
   )
-import Lib.Parser
+import Lib.AST.Parser
   ( Parser,
     pBool,
     pIdentifier,
