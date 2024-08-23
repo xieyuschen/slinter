@@ -139,12 +139,7 @@ pTypeDefinition =
 pUserDefinedValueTypeDefinition :: Parser UserDefinedValueTypeDefinition
 pUserDefinedValueTypeDefinition = do
   liftA2
-    ( \ident tp ->
-        UserDefinedValueTypeDefinition
-          { userDefinedValueTypeName = ident,
-            userDefinedValueElemType = tp
-          }
-    )
+    UserDefinedValueTypeDefinition
     ( pManySpaces
         *> pOneKeyword "type"
         *> pMany1Spaces
@@ -157,12 +152,7 @@ pUserDefinedValueTypeDefinition = do
 pTypeStruct :: Parser Structure
 pTypeStruct =
   liftA2
-    ( \ident pairs ->
-        Structure
-          { structName = ident,
-            structFields = pairs
-          }
-    )
+    Structure
     ( pManySpaces
         *> pOneKeyword "struct"
         *> pMany1Spaces

@@ -4,9 +4,10 @@
 
 module Lib.AST.Model where
 
+import Control.Lens
 import Data.Text (Text)
 import Lib.AST.Parser (SemVer)
-import SumTypes.TH
+import SumTypesX.TH
 
 keywordLogicalOr :: Text
 keywordLogicalOr = "||"
@@ -81,8 +82,8 @@ data Mapping = Mapping
   deriving (Show, Eq)
 
 data UserDefinedValueTypeDefinition = UserDefinedValueTypeDefinition
-  { userDefinedValueTypeName :: Text,
-    userDefinedValueElemType :: SType
+  { _userDefinedValueTypeName :: Text,
+    _userDefinedValueElemType :: SType
   }
   deriving (Show, Eq)
 
@@ -628,6 +629,8 @@ data SolFile = SolFile
     solEvents :: [EventDefinition]
   }
   deriving (Show, Eq)
+
+makeLenses ''UserDefinedValueTypeDefinition
 
 constructSumType
   "SolFileSum"
