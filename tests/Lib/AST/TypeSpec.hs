@@ -27,7 +27,7 @@ import Lib.AST.Model
       ),
     STypeEnum (STypeEnum, eelems, ename),
     Structure (Structure, structFields, structName),
-    UserDefinedValueTypeDefinition (UserDefinedValueTypeDefinition, userDefinedValueElemType, userDefinedValueTypeName),
+    UserDefinedValueTypeDefinition (UserDefinedValueTypeDefinition, _userDefinedValueElemType, _userDefinedValueTypeName),
   )
 import Lib.AST.Type
   ( pType,
@@ -305,16 +305,16 @@ parseTypeAliasSpec = do
         [ ( "type Alias1 is uint256;",
             Right $
               UserDefinedValueTypeDefinition
-                { userDefinedValueTypeName = "Alias1",
-                  userDefinedValueElemType = STypeUint 256
+                { _userDefinedValueTypeName = "Alias1",
+                  _userDefinedValueElemType = STypeUint 256
                 },
             ""
           ),
           ( "type _Ab is address;",
             Right $
               UserDefinedValueTypeDefinition
-                { userDefinedValueTypeName = "_Ab",
-                  userDefinedValueElemType = STypeAddress
+                { _userDefinedValueTypeName = "_Ab",
+                  _userDefinedValueElemType = STypeAddress
                 },
             ""
           ),
@@ -406,8 +406,8 @@ parseTypeDifinitionSpec = do
             Right $
               STypeAlias $
                 UserDefinedValueTypeDefinition
-                  { userDefinedValueTypeName = "Alias1",
-                    userDefinedValueElemType = STypeUint 256
+                  { _userDefinedValueTypeName = "Alias1",
+                    _userDefinedValueElemType = STypeUint 256
                   },
             ""
           )

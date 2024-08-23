@@ -7,19 +7,6 @@ author:             xieyuschen
 maintainer:         xieyuschen@gmail.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
-  
--- todo: remove this after I upload my forked version to hackage
--- https://github.com/xieyuschen/x-sum-type-boilerplate
-library x-sum-type-boilerplate
-  exposed-modules:
-      SumTypes.TH
-  hs-source-dirs:
-      src/Lib/x-sum-type-boilerplate/library
-  ghc-options: -Wall
-  build-depends:
-      base >= 4.1 && < 4.20
-    , template-haskell
-  default-language: Haskell2010
 
 common warnings
     ghc-options: -Wall
@@ -35,9 +22,9 @@ common common-depends
         bytestring,
         hspec,
         parsec ^>=3.1.16.1,
-        -- force to use my forked version
         x-sum-type-boilerplate,
-        optparse-applicative
+        optparse-applicative,
+        lens
         
 library internallib
     import: common-depends

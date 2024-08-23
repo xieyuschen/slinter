@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Lib.Command (executeFile, executeProject) where
 
 import Data.Text (Text, pack, unpack)
 import Lib.AST.File (pWholeSolFile)
+import Lib.AST.Model (ContractDefinition (contractName), SolFile (SolFile, solContracts, solFunctions))
 import Lib.AST.Parser (runSParser)
 import System.Directory (canonicalizePath, doesDirectoryExist, doesFileExist)
 import System.Directory.Internal.Prelude (exitFailure)
@@ -26,7 +28,7 @@ executeFile filepath = do
   fileContent <- pack <$> readFile ensuredPath
   let (re, _) = runSParser (pWholeSolFile ensuredPath) fileContent
   case re of
-    Right file -> print file
+    Right file -> checkFile file
     Left err -> print err >> exitFailure
   return ()
 
@@ -35,3 +37,7 @@ executeProject folderPath = do
   ei <- ensureExist folderPath Folder doesDirectoryExist
   ensuredPath <- either (\err -> print err >> exitFailure) return ei
   print "unsupported faeture for a project"
+
+checkFile :: SolFile -> IO ()
+checkFile SolFile {..} = do
+  foldMap (\c -> putStr "contract definition: " >> (print . contractName) c) solContracts
