@@ -801,7 +801,7 @@ parseCatchStatementSpec = do
             ""
           )
         ]
-  forM_ testCases $ exactlyParserVerifier "catch statement only" pCatchStatment
+  forM_ testCases $ exactlyParserVerifier "catch statement only" pCatchStatement
 
 parseEmitStatementSpec :: Spec
 parseEmitStatementSpec = do
