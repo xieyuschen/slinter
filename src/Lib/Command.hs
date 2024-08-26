@@ -5,7 +5,7 @@ module Lib.Command (executeFile, executeProject) where
 
 import Data.Text (Text, pack, unpack)
 import Lib.AST.File (pWholeSolFile)
-import Lib.AST.Model (ContractDefinition (contractName), SolFile (SolFile, solContracts, solFunctions))
+import Lib.AST.Model (ContractDefinition (contractName), SolFile (SolFile, solContracts, solFunctions), FunctionDefinition (..))
 import Lib.AST.Parser (runSParser)
 import System.Directory (canonicalizePath, doesDirectoryExist, doesFileExist)
 import System.Directory.Internal.Prelude (exitFailure)
@@ -41,3 +41,8 @@ executeProject folderPath = do
 checkFile :: SolFile -> IO ()
 checkFile SolFile {..} = do
   foldMap (\c -> putStr "contract definition: " >> (print . contractName) c) solContracts
+
+checkFunction :: FunctionDefinition -> Maybe Text
+checkFunction FunctionDefinition{..} = do
+  return ""
+

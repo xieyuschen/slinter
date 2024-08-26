@@ -4,7 +4,7 @@ module Lib.AST.Stat
   ( pState,
     pStateVariable,
     pEmitStatement,
-    pCatchStatment,
+    pCatchStatement,
     pTryStatement,
     pDoWhileStatement,
     pWhileStatement,
@@ -385,7 +385,7 @@ pTryStatement = do
       (pManySpaces >> pOneKeyword leftCurlyBrace >> pManySpaces)
       (pManySpaces >> pOneKeyword rightCurlyBrace >> pManySpaces)
       (many pState)
-  catches <- many pCatchStatment
+  catches <- many pCatchStatement
   return
     TryStatement
       { tryExpr = expr,
@@ -394,8 +394,8 @@ pTryStatement = do
         tryCatches = catches
       }
 
-pCatchStatment :: Parser CatchStatement
-pCatchStatment = do
+pCatchStatement :: Parser CatchStatement
+pCatchStatement = do
   ident <-
     pOneKeyword "catch"
       >> pMany1Spaces
